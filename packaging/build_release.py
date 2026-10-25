@@ -11,9 +11,10 @@ def main():
     args=parser.parse_args();out=args.output.resolve();out.mkdir(parents=True,exist_ok=True)
     env=dict(os.environ,QT_QPA_PLATFORM='offscreen')
     if not args.skip_tests:subprocess.run([sys.executable,'-m','pytest','-q','tests'],cwd=ROOT,env=env,check=True)
+    subprocess.run([sys.executable,'tests/validate_v16.py','--output',str(out/'validation')],cwd=ROOT,env=env,check=True)
     products=out/'build-products';dist=products/'dist';work=products/'work'
     subprocess.run([sys.executable,'-m','PyInstaller','--clean','--noconfirm','--distpath',str(dist),'--workpath',str(work),str(ROOT/'packaging'/'astro.spec')],cwd=ROOT,check=True)
-    name='AG_Astro_Motion_Studio_v1.5'
+    name='AG_Astro_Motion_Studio_v1.6'
     system={'win32':'Windows','darwin':'macOS'}.get(sys.platform,'Linux_validation')
     arch=platform.machine();suffix='' if sys.platform!='darwin' or arch=='arm64' else '_'+arch
     stage=out/(name+'_'+system+suffix);stage.mkdir(exist_ok=True)
@@ -33,9 +34,10 @@ def main():
     smoke_env['PATH']=str(Path(os.environ.get('SystemRoot','C:/Windows'))/'System32') if sys.platform=='win32' else '/usr/bin:/bin'
     subprocess.run([str(executable),'--self-test','--report',str(smoke)],cwd=stage,env=smoke_env,check=True,timeout=180)
     result=json.loads(smoke.read_text());assert result['ok'] and result['frozen']
-    for filename in ['README.md','LICENSE','GITHUB_RELEASE_NOTES.md','DISTRIBUTION.md']:shutil.copy2(ROOT/filename,stage/filename)
+    for filename in ['README.md','LICENSE','GITHUB_RELEASE_NOTES.md','DISTRIBUTION.md','VALIDATION.md']:shutil.copy2(ROOT/filename,stage/filename)
+    shutil.copytree(out/'validation',stage/'validation',dirs_exist_ok=True)
     collect(stage/'THIRD_PARTY_LICENSES')
-    (stage/'BUILD_INFO.json').write_text(json.dumps({'system':system,'architecture':arch,'python':platform.python_version(),'version':'1.5.0','self_test_passed':True},indent=2))
+    (stage/'BUILD_INFO.json').write_text(json.dumps({'system':system,'architecture':arch,'python':platform.python_version(),'version':'1.6.0','self_test_passed':True},indent=2))
     archive=out/(name+'_'+system+suffix+'.zip')
     if sys.platform=='darwin':subprocess.run(['ditto','-c','-k','--sequesterRsrc',str(stage),str(archive)],check=True)
     else:shutil.make_archive(str(archive.with_suffix('')),'zip',stage)

@@ -257,7 +257,7 @@ def test_video_quality_and_frame_status_propagation(tmp_path):
     info=render_video_scene(scene,default_keyframes(duration=1),tmp_path/'quality.mp4',1,3,
         quality=23,encoder='cpu',workers=1,status=status.append,progress=lambda i,n:progress.append((i,n)))
     assert info['quality']==23 and progress[-1]==(3,3)
-    assert 'Rendering frame 3 / 3' in status
+    assert any('Rendering frame 3 / 3' in item and 'Encoder: libx264' in item for item in status)
 
 
 def test_odd_custom_dimensions_do_not_break_depth_generation_or_preview_actions():

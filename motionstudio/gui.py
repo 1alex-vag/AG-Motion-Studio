@@ -4,6 +4,8 @@ from pathlib import Path
 import traceback
 import json
 import dataclasses
+import time
+from .preview_cache import PreviewCache
 import numpy as np
 from PIL import Image
 from PyQt6.QtCore import Qt, QThread, QTimer, pyqtSignal
@@ -106,7 +108,7 @@ class ImagePreview(QLabel):
 class Main(QMainWindow):
     def __init__(self):
         super().__init__()
-        self.setWindowTitle('AG Astro Motion Studio V1.5  •  ag_astrophotography')
+        self.setWindowTitle('AG Astro Motion Studio V1.6  •  ag_astrophotography')
         self.resize(1190, 790)
         self.setStyleSheet(STYLE)
         self.starless_path = self.star_path = None
@@ -114,6 +116,17 @@ class Main(QMainWindow):
         self.depth_versions = None
         self.worker = None
         self.scene_cache = None
+        self.preview_cache=PreviewCache()
+        self._preview_state=None
+        self._preview_id=0
+        self._preview_worker=None
+        self._preview_latest=None
+        self.playback_timer=QTimer(self)
+        self.playback_timer.timeout.connect(self._playback_tick)
+        self._playback_origin=0.
+        self._playback_start=0.
+        self._preview_seconds=0.
+        self._playback_request_time=-1.
         self.catalog = None
         self.protection = None
         self.star_seed = 42
@@ -317,6 +330,18 @@ class Main(QMainWindow):
         self.synthetic_density.setSuffix(' / MP');self.synthetic_density.setEnabled(False)
         self.synthetic_density.valueChanged.connect(lambda _:self.motion_preview())
         af.addRow('Synthetic density',self.synthetic_density)
+        self.preserve_size=QCheckBox('Preserve Original Star Size');self.preserve_size.setChecked(True)
+        af.addRow(self.preserve_size)
+        self.star_style_controls={}
+        for name,title,lo,hi,value in [('size_scale','Star Size Scale',50,150,100),('bloom','Star Bloom',0,100,12),('sharpness','Star Sharpness',0,100,70)]:
+            control=QSpinBox();control.setRange(lo,hi);control.setValue(value);control.setSuffix('%')
+            self.star_style_controls[name]=control;af.addRow(title,control)
+            control.valueChanged.connect(self.motion_preview)
+        self.preserve_size.toggled.connect(self.motion_preview)
+        compare=QPushButton('Original Stars / Motion Studio Stars')
+        compare.clicked.connect(self.compare_stars);af.addRow(compare)
+        self.cache_memory=QSpinBox();self.cache_memory.setRange(64,1024);self.cache_memory.setValue(512);self.cache_memory.setSuffix(' MB')
+        self.cache_memory.valueChanged.connect(self.preview_cache.resize);af.addRow('Preview Cache RAM',self.cache_memory)
         protect_view=QPushButton('Nebula protection view');protect_view.clicked.connect(self.protection_preview)
         sl.addWidget(protect_view,14,0,1,3)
         left_col.addWidget(scene_box)
@@ -412,8 +437,20 @@ class Main(QMainWindow):
         right.addWidget(self.tabs,1)
         frame_control = QHBoxLayout()
         frame_control.addWidget(QLabel('Preview position'))
-        self.timeline = QSlider(Qt.Orientation.Horizontal);self.timeline.setRange(0,100);self.timeline.setValue(40)
-        self.timeline.valueChanged.connect(self.motion_preview)
+        self.timeline = QSlider(Qt.Orientation.Horizontal);self.timeline.setRange(0,239);self.timeline.setValue(96)
+        self.timeline.valueChanged.connect(self._timeline_changed)
+        self.timeline.sliderPressed.connect(self.pause_playback)
+        self.timeline.sliderReleased.connect(self._timeline_released)
+        self.btn_play=QPushButton('▶ Play');self.btn_play.clicked.connect(self.toggle_playback)
+        frame_control.addWidget(self.btn_play)
+        self.loop_preview=QCheckBox('Loop Preview')
+        self.loop_mode.currentTextChanged.connect(lambda text:self.loop_preview.setChecked(text!='Off'))
+        frame_control.addWidget(self.loop_preview)
+        self.playback_fps=QComboBox();self.playback_fps.addItems(['Auto','15','24','30'])
+        self.playback_fps.setToolTip('Preview Playback FPS; export FPS is unchanged.')
+        frame_control.addWidget(self.playback_fps)
+        self.preview_status=QLabel('Preview ready')
+        right.addWidget(self.preview_status)
         frame_control.addWidget(self.timeline)
         right.addLayout(frame_control)
         self.status = QLabel('Ready. Import a starless image and matching star mask.')
@@ -425,7 +462,16 @@ class Main(QMainWindow):
         self.duration.valueChanged.connect(self.duration_changed)
         self.preset.currentTextChanged.connect(self.motion_preview)
         self.intensity.valueChanged.connect(self.motion_preview)
+        self.fps.currentTextChanged.connect(self._sync_timeline)
+        self._sync_timeline()
         self._update_buttons()
+
+    def _sync_timeline(self,*_):
+        ratio=self.timeline.value()/max(1,self.timeline.maximum())
+        self.timeline.blockSignals(True)
+        self.timeline.setMaximum(max(1,round(self.duration.value()*int(self.fps.currentText()))-1))
+        self.timeline.setValue(round(ratio*self.timeline.maximum()));self.timeline.blockSignals(False)
+        self.motion_preview()
 
     def _update_buttons(self):
         ready = (self.starless is not None and self.stars is not None
@@ -434,6 +480,7 @@ class Main(QMainWindow):
         busy = self.worker is not None
         for group in self.edit_groups:group.setEnabled(not busy)
         self.timeline.setEnabled(not busy)
+        self.btn_play.setEnabled(maps and not busy)
         self.btn_depth.setEnabled(ready and not busy)
         self.btn_refine.setEnabled(maps and not busy)
         self.btn_edit_depth.setEnabled(maps and not busy)
@@ -480,6 +527,7 @@ class Main(QMainWindow):
                                  ' · Mouse wheel = Z · Add keyframe to keep changes.')
 
     def _cinematic_changed(self,*_,slider_changed=False):
+        self._preview_id+=1;self._preview_latest=None;self._preview_state=None;self.preview_cache.clear()
         self.stop_loop()
         if slider_changed and not self._applying_cine_preset and hasattr(self,'cine_preset'):
             self.cine_preset.blockSignals(True);self.cine_preset.setCurrentText('Custom');self.cine_preset.blockSignals(False)
@@ -555,6 +603,8 @@ class Main(QMainWindow):
             motion_over_nebula=self.nebula_motion.value()/100,star_intensity=self.star_intensity.value()/100)
 
     def _clear_generated(self):
+        self.pause_playback();self._preview_id+=1;self._preview_latest=None
+        self.preview_cache.clear();self._preview_state=None
         self.stop_loop();self.preview_debounce.stop()
         self.nd=self.sd=self.catalog=self.protection=self.scene_cache=self.depth_versions=None
         self._pending_preview=None
@@ -667,6 +717,7 @@ class Main(QMainWindow):
 
     def _start_work(self,task,after,kind='processing',label='Processing…'):
         if self.worker is not None:return False
+        self.pause_playback();self._preview_id+=1;self._preview_latest=None
         self.stop_loop();self.preview_debounce.stop()
         self._job_kind=kind;self._operation_failed=False
         self._operation_status(label);self._operation_progress(-1)
@@ -761,7 +812,7 @@ class Main(QMainWindow):
 
     def about_dialog(self):
         QMessageBox.about(self,'About AG Astro Motion Studio',
-            f'AG Astro Motion Studio V1.5 ({__version__})\nDeveloped by ag_astrophotography\n\n'
+            f'AG Astro Motion Studio V1.6 ({__version__})\nDeveloped by ag_astrophotography\n\n'
             'Artistic 2.5D animation from original starless and star-mask images.\nDepth Refinement runs locally and works offline.')
 
     def _mode_changed(self, mode):
@@ -794,7 +845,7 @@ class Main(QMainWindow):
         self.cam['z'].setValue(self.cam['z'].value()+step*.08)
 
     def _current_pose(self):
-        return s3.Pose(time=self.duration.value()*self.timeline.value()/100,
+        return s3.Pose(time=self.duration.value()*self.timeline.value()/max(1,self.timeline.maximum()),
                        **{k:v.value() for k,v in self.cam.items()})
 
     def _camera_changed(self, *_):
@@ -817,7 +868,7 @@ class Main(QMainWindow):
         if idx < 0 or idx>=len(self.keyframes):return
         p=sorted(self.keyframes,key=lambda f:f.time)[idx]
         self.timeline.blockSignals(True)
-        self.timeline.setValue(int(round(100*p.time/self.duration.value())))
+        self.timeline.setValue(int(round(self.timeline.maximum()*p.time/self.duration.value())))
         self.timeline.blockSignals(False)
         self._set_camera(p)
         self.motion_preview(manual=True)
@@ -830,6 +881,7 @@ class Main(QMainWindow):
         self.keyframes.sort(key=lambda k:k.time)
         self._refresh_keyframes()
         self.status.setText('Camera keyframe saved at %.2fs.'%current.time)
+        self.motion_preview(manual=True)
 
     def delete_keyframe(self):
         idx=self.kf_list.currentRow()
@@ -841,10 +893,10 @@ class Main(QMainWindow):
     def _get_scene(self,w,h,fast_preview=False):
         if self.protection is None:self.protection=nebula_protection(self.starless)
         density=self.synthetic_density.value() if self.synthetic.isChecked() else 0
-        key=(w,h,fast_preview,density,id(self.nd),id(self.sd),id(self.starless),id(self.stars),id(self.catalog),id(self.protection),self.cinematic_settings())
+        key=(w,h,fast_preview,density,id(self.nd),id(self.sd),id(self.starless),id(self.stars),id(self.catalog),id(self.protection),self.cinematic_settings(),repr(self.star_style()))
         if self.scene_cache is None or self.scene_cache[0]!=key:
             self.scene_cache=(key,s3.Scene(self.starless,self.stars,self.nd,self.sd,w,h,catalog=self.catalog,
-                    protection=self.protection,fast_preview=fast_preview,synthetic_density=density,cinematic=self.cinematic_settings()))
+                    protection=self.protection,fast_preview=fast_preview,synthetic_density=density,cinematic=self.cinematic_settings(),star_style=self.star_style()))
         return self.scene_cache[1]
 
     def set_synthetic(self, enabled):
@@ -873,13 +925,62 @@ class Main(QMainWindow):
 
     def _scene_snapshot(self,w,h,fast):
         config=self.cinematic_settings();density=self.synthetic_density.value() if self.synthetic.isChecked() else 0
-        key=(w,h,fast,density,id(self.nd),id(self.sd),id(self.starless),id(self.stars),id(self.catalog),id(self.protection),config)
+        key=(w,h,fast,density,id(self.nd),id(self.sd),id(self.starless),id(self.stars),id(self.catalog),id(self.protection),repr(config),repr(self.star_style()))
         args=dict(starless=self.starless,stars=self.stars,nebdepth=self.nd,stardepth=self.sd,out_w=w,out_h=h,
-                  catalog=self.catalog,protection=self.protection,fast_preview=fast,synthetic_density=density,cinematic=config)
+                  catalog=self.catalog,protection=self.protection,fast_preview=fast,synthetic_density=density,cinematic=config,star_style=self.star_style())
         return key,args
 
-    def motion_preview(self,value=None,manual=False):
+    def star_style(self):
+        return dict(preserve_size=self.preserve_size.isChecked(),
+                    **{k:v.value()/100 for k,v in self.star_style_controls.items()})
+
+    def _timeline_changed(self,*_):
+        self._preview_id+=1
+        # Cache hits are immediate even while the thumb is being dragged.
+        self.motion_preview(debounce=True)
+
+    def _timeline_released(self):
+        self.preview_debounce.stop();self.motion_preview()
+
+    def pause_playback(self):
+        self.playback_timer.stop()
+        if hasattr(self,'btn_play'):self.btn_play.setText('▶ Play')
+
+    def toggle_playback(self):
+        if self.playback_timer.isActive():self.pause_playback();return
+        if self.nd is None or self.worker is not None:return
+        self.stop_loop()
+        self._playback_start=self.duration.value()*self.timeline.value()/max(1,self.timeline.maximum())
+        if self.timeline.value()>=self.timeline.maximum():self._playback_start=0.
+        self._playback_origin=time.monotonic()
+        self.btn_play.setText('❚❚ Pause');self.playback_timer.start(10)
+        self._playback_last=-1;self._playback_request_time=-1
+        self._playback_tick()
+
+    def _playback_tick(self):
+        duration=self.duration.value();elapsed=time.monotonic()-self._playback_origin+self._playback_start
+        if elapsed>=duration:
+            if self.loop_preview.isChecked():elapsed%=duration
+            else:
+                self.pause_playback();self.timeline.setValue(self.timeline.maximum());self.motion_preview();return
+        fps=min(30,int(self.fps.currentText())) if self.playback_fps.currentText()=='Auto' else int(self.playback_fps.currentText())
+        # Keep the playhead on wall-clock time while skipping frames that cannot
+        # be completed at the selected maximum FPS. Completed requests can then
+        # be shown without ever presenting an obsolete result.
+        now=time.monotonic()
+        if now-self._playback_request_time<max(1/fps,self._preview_seconds*1.3):
+            self.timeline.blockSignals(True);self.timeline.setValue(round(elapsed/duration*self.timeline.maximum()));self.timeline.blockSignals(False)
+            return
+        self._playback_request_time=now
+        frame=int(elapsed*fps)
+        if frame==self._playback_last:return
+        self._playback_last=frame
+        self.timeline.blockSignals(True);self.timeline.setValue(round(elapsed/duration*self.timeline.maximum()));self.timeline.blockSignals(False)
+        self.motion_preview()
+
+    def motion_preview(self,value=None,manual=False,debounce=False,seconds=None):
         if not hasattr(self,'nd') or self.nd is None:return
+        self._preview_id+=1;request=self._preview_id
         if self.worker is not None:
             self._pending_preview=manual;return
         try:settings=self._settings()
@@ -887,22 +988,88 @@ class Main(QMainWindow):
         fast=self.preview_quality.currentIndex()==0;limit=640 if fast else 900
         scale=min(1.,limit/max(settings.width,settings.height))
         w=max(2,int(settings.width*scale)//2*2);h=max(2,int(settings.height*scale)//2*2)
-        key,args=self._scene_snapshot(w,h,fast);cached=self.scene_cache
-        frames=self.render_keyframes();t=settings.duration*self.timeline.value()/100;pose=self._current_pose() if manual else None
-        render_args=self._render_arguments();duration=settings.duration
+        key,args=self._scene_snapshot(w,h,fast)
+        frames=self.render_keyframes();duration=settings.duration
+        t=duration*self.timeline.value()/max(1,self.timeline.maximum()) if seconds is None else seconds
+        pose=self._current_pose() if manual else None
+        render_args=self._render_arguments()
+        state=(key,repr(frames),repr(render_args),duration,settings.fps)
+        if state!=self._preview_state:
+            self.preview_cache.clear();self._preview_state=state
+            self.preview_status.setText('Preview cache updated')
+        frame_key=(state,round(t,9),repr(pose))
+        # Only the newest request survives. Running work keeps its immutable snapshot.
+        self._preview_latest=None
+        cached=self.preview_cache.get(frame_key)
+        if cached is not None:
+            self._show_preview(cached,t,duration,'Cached',manual);return
+        payload=(request,frame_key,key,args,frames,t,duration,pose,render_args,settings.fps,manual)
+        self._preview_latest=payload
+        if debounce:
+            self.preview_debounce.start(125);return
+        self.preview_debounce.stop();self._launch_preview()
+
+    def _show_preview(self,result,t,duration,label,manual=False):
+        current,image=result
+        # Camera widgets remain untouched during timeline playback and scrubbing.
+        if manual:self._set_camera(current)
+        self.views['3D Preview'].set_rgb(image);self.tabs.setCurrentWidget(self.views['3D Preview'])
+        fps=int(self.fps.currentText());count=max(1,round(duration*fps))
+        self.preview_status.setText(f'Frame {min(count,round(t/duration*self.timeline.maximum())+1)} / {count} · {label}')
+
+    def _launch_preview(self):
+        if self._preview_worker is not None or self._preview_latest is None or self.worker is not None:return
+        payload=self._preview_latest;self._preview_latest=None
+        request,frame_key,key,args,frames,t,duration,pose,render_args,fps,manual=payload
+        entry=self.preview_cache.get(frame_key)
+        if entry is not None:
+            if request==self._preview_id:self._show_preview(entry,t,duration,'Cached',manual)
+            return
+        cached=self.scene_cache
         def task(status,progress):
-            status('Preparing preview scene…');progress(-1)
             scene=cached[1] if cached is not None and cached[0]==key else s3.Scene(**args)
             current=scene.center_pose(pose) if manual else scene.pose_at(frames,t,duration)
-            status('Rendering preview…');progress(-1)
-            previous=None if manual else scene.pose_at(frames,t-.5/30 if scene.cinematic.loop!='Off' else max(0,t-.5/30),duration)
-            image=scene.render(current,previous_pose=previous,**render_args)
-            return scene,current,image
+            previous=None if manual else scene.pose_at(frames,t-.5/fps if scene.cinematic.loop!='Off' else max(0,t-.5/fps),duration)
+            return scene,current,scene.render(current,previous_pose=previous,**render_args)
+        worker=Work(task,self);self._preview_worker=worker
+        started=time.monotonic()
+        self.preview_status.setText('Rendering preview…')
         def done(result):
-            scene,current,image=result;self.scene_cache=(key,scene);self._set_camera(current)
-            self.views['3D Preview'].set_rgb(image);self.tabs.setCurrentWidget(self.views['3D Preview'])
-            self.status.setText('Preview ready — 100%.'+(' Subject anchor was limited to the output crop.' if scene.anchor_clamped else ''))
-        self._start_work(task,done,'preview','Rendering preview…')
+            scene,current,image=result
+            self._preview_seconds=time.monotonic()-started
+            if frame_key[0]==self._preview_state:
+                self.scene_cache=(key,scene);self.preview_cache.put(frame_key,(current,image))
+            if request==self._preview_id and self.nd is not None:
+                self._show_preview((current,image),t,duration,'Preview ready',manual)
+        def failed(message):
+            if request==self._preview_id:self.preview_status.setText('Preview failed: '+message)
+        def finished():
+            self._preview_worker=None;worker.deleteLater()
+            if not self.preview_debounce.isActive():self._launch_preview()
+        worker.done.connect(done);worker.failed.connect(failed);worker.finished.connect(finished);worker.start()
+
+    def compare_stars(self):
+        if self.nd is None or self.worker is not None:return
+        try:settings=self._settings()
+        except ValueError as exc:self.status.setText(str(exc));return
+        scale=min(1.,900/max(settings.width,settings.height))
+        key,args=self._scene_snapshot(max(2,int(settings.width*scale)//2*2),max(2,int(settings.height*scale)//2*2),False)
+        def task(status,progress):
+            scene=s3.Scene(**args)
+            from .engine import _fit_rgb
+            original=np.uint8(normalized_rgb(_fit_rgb(args['stars'],scene.w,scene.h))*255+.5)
+            # Black nebula isolates only the observed stars under a neutral camera.
+            scene.neb=np.zeros_like(scene.neb);scene.bands=None
+            rendered=scene.render(s3.Pose(),**render_args)
+            return original,rendered
+        render_args=self._render_arguments()
+        def done(result):
+            dialog=QDialog(self);dialog.setWindowTitle('Original Stars / Motion Studio Stars — neutral camera')
+            layout=QHBoxLayout(dialog)
+            for title,image in zip(('Original Stars','Motion Studio Stars'),result):
+                col=QVBoxLayout();col.addWidget(QLabel(title));view=ImagePreview();view.set_rgb(image);col.addWidget(view);layout.addLayout(col)
+            dialog.resize(1100,700);dialog.exec()
+        self._start_work(task,done,'comparison','Comparing original star profiles…')
 
     def duration_changed(self, value):
         self.stop_loop()
@@ -910,6 +1077,7 @@ class Main(QMainWindow):
         factor=value/max(1,self._last_duration)
         self.keyframes=[dataclasses.replace(k,time=k.time*factor) for k in self.keyframes]
         self._last_duration=value
+        self._sync_timeline()
         self._refresh_keyframes();self.motion_preview()
 
     def detection_settings(self):
@@ -963,7 +1131,8 @@ class Main(QMainWindow):
         return frames
 
     def project_document(self):
-        return {'schema':6,'application':'AG Astro Motion Studio V1.5',
+        return {'schema':6,'application':'AG Astro Motion Studio V1.6',
+          'star_style':self.star_style(),
           'depth_refinement_preset':self.refinement_preset.currentText(),
           'export':{'orientation':self.orientation.currentText(),'quality':self.video_quality.value()},
           'cinematic':dataclasses.asdict(self.cinematic_settings()),'cinematic_preset':self.cine_preset.currentText(),
@@ -1066,11 +1235,16 @@ class Main(QMainWindow):
                 self.frame_workers.setValue(doc.get('frame_workers',0))
             finally:
                 for widget in controls:widget.blockSignals(False)
+            style=doc.get('star_style',{})
+            self.preserve_size.setChecked(style.get('preserve_size',True))
+            for key,control in self.star_style_controls.items():
+                control.blockSignals(True);control.setValue(round(100*style.get(key,{'size_scale':1.,'bloom':.12,'sharpness':.7}[key])));control.blockSignals(False)
             self._restore_cinematic(cine,doc.get('cinematic_preset','Custom'))
             self.refinement_preset.setCurrentText(doc.get('depth_refinement_preset','Balanced'))
             self.loop_duration.setCurrentText(str(self.duration.value()))
             self.star_seed=detection.seed
             self._last_duration=self.duration.value()
+            self._sync_timeline()
             self.keyframes=frames;self._refresh_keyframes()
             self.parallax_label.setText(f'{self.parallax.value()}%');self.depth_spread_label.setText(f'{self.depth_spread.value()}%')
             self.nebula_motion_label.setText(f'{self.nebula_motion.value()}%');self.star_intensity_label.setText(f'{self.star_intensity.value()}%')
@@ -1117,7 +1291,8 @@ class Main(QMainWindow):
         self._advanced_visibility()
 
     def closeEvent(self,event):
-        if self.worker is not None:
+        self.pause_playback()
+        if self.worker is not None or self._preview_worker is not None:
             self.status.setText('Please wait for the current operation before closing.')
             event.ignore();return
         self.stop_loop();self.preview_debounce.stop()
@@ -1156,13 +1331,14 @@ class Main(QMainWindow):
         movement=self.star_movement.isChecked();boost=self.boost.value();bloom=self.bloom.isChecked()
         doc=self.project_document()
         cine=self.cinematic_settings()
+        star_style=self.star_style()
         quality=self.video_quality.value();versions=self.depth_versions or DepthVersions(nd)
         par=self.parallax.value()/100
         spread=self.depth_spread.value()/100
         duration=settings.duration;fps=settings.fps
         def task(status,progress):
             status('Building final 3D scene…');progress(-1)
-            scene=s3.Scene(n,st,nd,sd,settings.width,settings.height,catalog=catalog,protection=protection,synthetic_density=density,cinematic=cine)
+            scene=s3.Scene(n,st,nd,sd,settings.width,settings.height,catalog=catalog,protection=protection,synthetic_density=density,cinematic=cine,star_style=star_style)
             encoding=s3.render_video_scene(scene,frames,path,duration,fps,par,spread,
                  progress=lambda done,total:progress(int(100*done/total)),
                  movement=movement,brightness_boost=boost,bloom=bloom,motion_over_nebula=over_nebula,

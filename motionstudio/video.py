@@ -47,7 +47,18 @@ def worker_count(width,height,requested=0):
     cores=max(1,os.cpu_count() or 1)
     target=min(4,max(1,cores//2)) if requested==0 else max(1,min(8,int(requested),cores))
     # Conservative cap for concurrent RGB, mapping arrays and ordered queue.
-    memory_cap=max(1,int(512*1024**2/max(1,width*height*100)))
+    available=1024*1024**2
+    try:
+        if os.name=='nt':
+            import ctypes
+            class Memory(ctypes.Structure):
+                _fields_=[('length',ctypes.c_ulong),('load',ctypes.c_ulong)]+[(name,ctypes.c_ulonglong) for name in ('total_phys','avail_phys','total_page','avail_page','total_virtual','avail_virtual','extended')]
+            memory=Memory();memory.length=ctypes.sizeof(memory)
+            if ctypes.windll.kernel32.GlobalMemoryStatusEx(ctypes.byref(memory)):available=memory.avail_phys
+        elif hasattr(os,'sysconf'):available=os.sysconf('SC_AVPHYS_PAGES')*os.sysconf('SC_PAGE_SIZE')
+    except (OSError,ValueError,AttributeError):pass
+    budget=min(1024*1024**2,max(128*1024**2,available*.25))
+    memory_cap=max(1,int(budget/max(1,width*height*120)))
     return min(target,memory_cap)
 
 
@@ -126,7 +137,7 @@ def render_video(scene,keyframes,path,duration,fps,star_parallax=1.,depth_spread
         status(f'Rendering with {threads} frame worker(s), {ENCODERS[selected][0]}{reason}…')
     original_progress=progress
     def progress(done,total):
-        if status:status(f'Rendering frame {done} / {total}')
+        if status:status(f'Encoder: {ENCODERS[selected][0]} · Rendering frame {done} / {total}')
         if original_progress:original_progress(done,total)
     fd,temporary=tempfile.mkstemp(suffix='.mp4',prefix='.astro-render-',dir=path.parent);os.close(fd)
     temporary=Path(temporary)

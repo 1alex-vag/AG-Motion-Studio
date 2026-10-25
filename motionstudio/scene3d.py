@@ -96,7 +96,7 @@ def _sample_map_points(image, xs, ys, interpolation=cv2.INTER_LINEAR, border_mod
 
 class Scene:
     def __init__(self, starless, stars, nebdepth, stardepth=None, out_w=1280, out_h=720,
-                 catalog=None, detection=None, protection=None, fast_preview=False, synthetic_density=0, cinematic=None):
+                 catalog=None, detection=None, protection=None, fast_preview=False, synthetic_density=0, cinematic=None, star_style=None):
         from .engine import _fit_rgb
         from .star_catalog import detect_stars, normalized_rgb, with_synthetic_background
         from .protection import nebula_protection
@@ -111,6 +111,7 @@ class Scene:
         self.source_nd=nebdepth
         self.protection=protection if protection is not None else nebula_protection(starless)
         self._atlas_cache={}
+        self.star_style=dict(star_style or {})
         self.neb = normalized_rgb(_fit_rgb(starless,self.w,self.h))
         self.nd = prepared_depth(_fit_rgb(nebdepth,self.w,self.h).astype(np.float32),self.cinematic)
         if self.cinematic.enabled and not (self.cinematic.layer_split or self.cinematic.volumetric):
@@ -132,6 +133,7 @@ class Scene:
         c = self.catalog
         self.x = (c.x-ox+.5)*self.w/cw-.5
         self.y = (c.y-oy+.5)*self.h/ch-.5
+        self.star_importance=np.clip(c.radius/max(1.,float(np.percentile(c.radius,75))) if len(c) else c.radius,0,1)
         self.radius = c.radius * .5*(self.w/cw+self.h/ch)
         self.crop=(ox,oy,cw,ch)
         self.sx,self.sy=self.w/cw,self.h/ch
@@ -160,6 +162,7 @@ class Scene:
                     image=(image*(1-.2*volume*distant)+soft*(.2*volume*distant))*(1-.08*volume*distant)
                     image+=.008*volume*distant+.04*volume*glow
                 self.layer_images.append(image.astype(np.float32))
+        self.layer_premultiplied=[image*mask[...,None] for image,mask in zip(self.layer_images,self.bands)] if self.bands is not None else []
         ax=(self.cinematic.anchor_x*(iw-1)-ox+.5)*self.sx-.5
         ay=(self.cinematic.anchor_y*(ih-1)-oy+.5)*self.sy-.5
         self.anchor_clamped=not (0<=ax<self.w and 0<=ay<self.h)
@@ -181,7 +184,7 @@ class Scene:
     def prepare_sprites(self,bloom=False):
         from .sprites import prepare_atlas
         if bloom not in self._atlas_cache:
-            self._atlas_cache[bloom]=prepare_atlas(self.catalog,self.sx,self.sy,bloom)
+            self._atlas_cache[bloom]=prepare_atlas(self.catalog,self.sx,self.sy,bloom,self.star_style)
         return self._atlas_cache[bloom]
 
     def _project(self, pose, depth):
@@ -217,9 +220,7 @@ class Scene:
         depth = 3.+(self.catalog.depth-.5)*(-3.8)*spread*amount*star_motion
         if config.enabled:
             # Softly keep the largest observed stars out of the nearest plane.
-            size=self.catalog.radius
-            importance=np.clip(size/max(1.,float(np.percentile(size,75))) if len(size) else size,0,1)
-            floor=.65+config.foreground_limit*importance*.85
+            floor=.65+config.foreground_limit*self.star_importance*.85
             depth=np.maximum(depth,floor)
         depth=np.maximum(depth,.25)
         normal, scale, valid = self._project(pose,depth)
@@ -231,11 +232,13 @@ class Scene:
             # Protect both origins and possible destinations. A faint field star
             # moving into a bright core also gets a smooth reduction in motion.
             destination=locked+par*(normal-locked)
-            xs,ys=self._inverse_surface_points(pose,destination)
+            candidates=(destination[:,0]>=0)&(destination[:,0]<self.w)&(destination[:,1]>=0)&(destination[:,1]<self.h)&lockvalid
+            xs,ys=self._inverse_surface_points(pose,destination[candidates])
             incoming=_sample_map_points(self.protection,xs,ys)
             ox,oy,cw,ch=self.crop
             inside=(xs>=ox)&(xs<ox+cw)&(ys>=oy)&(ys<oy+ch)
-            protection=np.maximum(protection,np.where(inside,incoming,0))
+            protection=protection.copy()
+            protection[candidates]=np.maximum(protection[candidates],np.where(inside,incoming,0))
         response=par*(1-protection*(1-amount))
         centers=locked+response[:,None]*(normal-locked)
         sizes=np.clip(lockscale+response*(scale-lockscale),.05,12)
@@ -279,7 +282,7 @@ class Scene:
             sy=(self.cy+self.f0*(pose.y+distance*wy)/depth).astype(np.float32)
             weight=cv2.remap(mask,sx,sy,cv2.INTER_LINEAR,borderMode=cv2.BORDER_REFLECT_101)
             weight=np.where((distance>.08)&(wz>0),weight,0)
-            output+=cv2.remap(image*mask[...,None],sx,sy,cv2.INTER_LINEAR,borderMode=cv2.BORDER_REFLECT_101)*((distance>.08)&(wz>0))[...,None]
+            output+=cv2.remap(self.layer_premultiplied[index],sx,sy,cv2.INTER_LINEAR,borderMode=cv2.BORDER_REFLECT_101)*((distance>.08)&(wz>0))[...,None]
             coverage+=weight
         return output/np.maximum(coverage[...,None],1e-6)
 

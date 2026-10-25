@@ -49,9 +49,18 @@ def main():
         if report['frozen']:
             executable.relative_to(Path(sys._MEIPASS).resolve())
             assert Path(os.environ['NUMBA_CACHE_DIR']).is_relative_to(app_data_dir())
+        window.timeline.setValue(2);window._timeline_released()
+        def idle():
+            deadline=time.monotonic()+30
+            while (window._preview_worker is not None or window._preview_latest is not None or window.preview_debounce.isActive()) and time.monotonic()<deadline:app.processEvents();time.sleep(.002)
+            assert window._preview_worker is None
+        idle();window.timeline.setValue(3);window._timeline_released();idle()
+        hits=window.preview_cache.hits;window.timeline.setValue(2);idle()
+        assert window.preview_cache.hits>hits and 'Cached' in window.preview_status.text()
+        window.toggle_playback();assert window.playback_timer.isActive();window.pause_playback();idle()
         window.close();app.processEvents()
         report.update(ok=True,qt=True,compiled_renderer=True,ffmpeg=str(executable),video=info,
-                      depth_editor=True,volumetric_loop=True,fits=True,tiff=True)
+                      depth_editor=True,volumetric_loop=True,fits=True,tiff=True,preview_cache=True,play_pause=True)
     except BaseException as exc:
         import traceback
         report.update(ok=False,error=str(exc),traceback=traceback.format_exc())
