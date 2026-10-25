@@ -523,7 +523,9 @@ class Main(QMainWindow):
         config=self.cinematic_settings()
         if not config.enabled or config.loop=='Off':return
         self.stop_loop();self.preview_debounce.stop()
-        settings=self._settings();scale=min(1.,480/max(settings.width,settings.height))
+        try:settings=self._settings()
+        except ValueError as exc:self.status.setText(str(exc));return
+        scale=min(1.,480/max(settings.width,settings.height))
         w=max(2,int(settings.width*scale)//2*2);h=max(2,int(settings.height*scale)//2*2)
         key,args=self._scene_snapshot(w,h,True);cached=self.scene_cache;frames=self.render_keyframes()
         duration=settings.duration;count=min(240,max(24,round(duration*12)))
@@ -628,7 +630,9 @@ class Main(QMainWindow):
         if self.worker is not None:return
         if self.starless is None or self.stars is None:return
         n,st=self.starless,self.stars;detection=self.detection_settings()
-        settings=self._settings();config=self.cinematic_settings()
+        try:settings=self._settings()
+        except ValueError:settings=e.MotionSettings()  # depth generation is independent of export dimensions
+        config=self.cinematic_settings()
         density=self.synthetic_density.value() if self.synthetic.isChecked() else 0
         scale=min(1.,640/max(settings.width,settings.height));w=max(2,int(settings.width*scale)//2*2);h=max(2,int(settings.height*scale)//2*2)
         def task(status,progress):
@@ -939,7 +943,9 @@ class Main(QMainWindow):
 
     def debug_stars(self,depth=False):
         if self.catalog is None or self.worker is not None:return
-        settings=self._settings();scale=min(1.,900/max(settings.width,settings.height))
+        try:settings=self._settings()
+        except ValueError as exc:self.status.setText(str(exc));return
+        scale=min(1.,900/max(settings.width,settings.height))
         key,args=self._scene_snapshot(max(2,int(settings.width*scale)//2*2),max(2,int(settings.height*scale)//2*2),False)
         spread=self.depth_spread.value()/100
         self._start_work(lambda status,progress:s3.Scene(**args).debug_view(depth,spread),

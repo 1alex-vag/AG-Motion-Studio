@@ -258,3 +258,15 @@ def test_video_quality_and_frame_status_propagation(tmp_path):
         quality=23,encoder='cpu',workers=1,status=status.append,progress=lambda i,n:progress.append((i,n)))
     assert info['quality']==23 and progress[-1]==(3,3)
     assert 'Rendering frame 3 / 3' in status
+
+
+def test_odd_custom_dimensions_do_not_break_depth_generation_or_preview_actions():
+    win=Main();win.starless,win.stars,_=pair()
+    win.preset.setCurrentText('Custom');win.custom_width.setValue(1537)
+    win.make_depth();wait_idle(win)
+    assert win.nd is not None and win.btn_depth.isEnabled()
+    win.motion_preview();assert win.worker is None and 'even numbers' in win.status.text()
+    win.cinematic_mode.setChecked(True);win.loop_mode.setCurrentText('Seamless Drift');wait_idle(win)
+    win.preview_loop();assert win.worker is None and 'even numbers' in win.status.text()
+    win.debug_stars();assert win.worker is None and 'even numbers' in win.status.text()
+    win.close()
