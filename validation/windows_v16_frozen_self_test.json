@@ -1,0 +1,20 @@
+{
+  "version": "1.6.0",
+  "frozen": true,
+  "ok": true,
+  "qt": true,
+  "compiled_renderer": true,
+  "ffmpeg": "D:\\a\\AG-Motion-Studio\\AG-Motion-Studio\\release\\AG_Astro_Motion_Studio_v1.6_Windows\\AG_Astro_Motion_Studio_v1.6\\_internal\\imageio_ffmpeg\\binaries\\ffmpeg-win-x86_64-v7.1.exe",
+  "video": {
+    "quality": 18,
+    "encoder": "libx264",
+    "workers": 1,
+    "frames": 2
+  },
+  "depth_editor": true,
+  "volumetric_loop": true,
+  "fits": true,
+  "tiff": true,
+  "preview_cache": true,
+  "play_pause": true
+}

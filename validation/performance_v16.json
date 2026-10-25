@@ -1,0 +1,146 @@
+{
+  "platform": "win32",
+  "baseline_commit": "db0849a0a363c3ecc868bfbce4b50c226a9da15e",
+  "fields": {
+    "sparse": {
+      "v15": {
+        "stars": 247,
+        "prepare_seconds": 0.5601589999999987,
+        "first_preview_seconds": 0.9580739999999821,
+        "preview_median_seconds": 0.023371499999996104,
+        "repeat_without_cache_seconds": 0.11688290000000734,
+        "video_seconds": 1.4945612999999867,
+        "video": {
+          "quality": 18,
+          "encoder": "libx264",
+          "workers": 1,
+          "frames": 6
+        }
+      },
+      "v16": {
+        "stars": 247,
+        "prepare_seconds": 0.5943367000000137,
+        "first_preview_seconds": 0.17711890000001063,
+        "preview_median_seconds": 0.022976199999988012,
+        "repeat_without_cache_seconds": 0.11308599999998137,
+        "video_seconds": 1.4712703000000147,
+        "video": {
+          "quality": 18,
+          "encoder": "libx264",
+          "workers": 1,
+          "frames": 6
+        }
+      },
+      "renderer_speedup": 1.0172047597082328,
+      "video_speedup": 1.015830537733258,
+      "cache": {
+        "fresh_seconds": 0.020332099999990305,
+        "retrieval_median_seconds": 3.000000106112566e-07,
+        "hits": 100,
+        "bytes": 817920,
+        "speedup": 67773.66426942188
+      }
+    },
+    "dense": {
+      "v15": {
+        "stars": 25938,
+        "prepare_seconds": 1.8928756999999905,
+        "first_preview_seconds": 0.24064169999999763,
+        "preview_median_seconds": 0.0839665000000025,
+        "repeat_without_cache_seconds": 0.4223463000000436,
+        "video_seconds": 3.9369626000000153,
+        "video": {
+          "quality": 18,
+          "encoder": "libx264",
+          "workers": 1,
+          "frames": 6
+        }
+      },
+      "v16": {
+        "stars": 25938,
+        "prepare_seconds": 6.593055300000003,
+        "first_preview_seconds": 0.22166459999999688,
+        "preview_median_seconds": 0.05852790000000141,
+        "repeat_without_cache_seconds": 0.2924251999999967,
+        "video_seconds": 2.246559600000012,
+        "video": {
+          "quality": 18,
+          "encoder": "libx264",
+          "workers": 1,
+          "frames": 6
+        }
+      },
+      "renderer_speedup": 1.4346405731283793,
+      "video_speedup": 1.7524407542982587,
+      "cache": {
+        "fresh_seconds": 0.05702880000001187,
+        "retrieval_median_seconds": 3.000000106112566e-07,
+        "hits": 100,
+        "bytes": 817920,
+        "speedup": 190095.9932761817
+      }
+    }
+  },
+  "exports": [
+    {
+      "width": 1920,
+      "height": 1080,
+      "seconds": 0.8939895000000035,
+      "stars": 25938,
+      "quality": 18,
+      "encoder": "libx264",
+      "workers": 2,
+      "frames": 3
+    },
+    {
+      "width": 1080,
+      "height": 1920,
+      "seconds": 0.7961174000000142,
+      "stars": 25938,
+      "quality": 18,
+      "encoder": "libx264",
+      "workers": 2,
+      "frames": 3
+    },
+    {
+      "width": 2560,
+      "height": 1440,
+      "seconds": 1.4291675000000055,
+      "stars": 25938,
+      "quality": 18,
+      "encoder": "libx264",
+      "workers": 2,
+      "frames": 3
+    },
+    {
+      "width": 1440,
+      "height": 2560,
+      "seconds": 1.3243568000000039,
+      "stars": 25938,
+      "quality": 18,
+      "encoder": "libx264",
+      "workers": 2,
+      "frames": 3
+    },
+    {
+      "width": 3840,
+      "height": 2160,
+      "seconds": 3.805904300000009,
+      "stars": 25938,
+      "quality": 18,
+      "encoder": "libx264",
+      "workers": 1,
+      "frames": 3
+    },
+    {
+      "width": 2160,
+      "height": 3840,
+      "seconds": 3.602910799999961,
+      "stars": 25938,
+      "quality": 18,
+      "encoder": "libx264",
+      "workers": 1,
+      "frames": 3
+    }
+  ]
+}

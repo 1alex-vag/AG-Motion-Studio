@@ -15,3 +15,14 @@ Includes the standalone Windows executable, bundled runtime and FFmpeg, README, 
 This release is Windows-only. macOS V1.5 packages are unchanged. No GitHub release is published automatically.
 
 Limitations: RAM-only preview cache; cache misses still require rendering. Detection may merge touching stars or omit sub-threshold sources. Observed profiles undergo fractional resampling and H.264 color subsampling. GPU hardware is not available on the validation runner. Validation uses reproducible sparse/dense synthetic fields and short exports; the provided screenshots are visual references, not the original scientific source pair. Long 4K stress runs and a physical clean Windows machine are not claimed tested. See the enclosed reports for measured results and platform evidence.
+
+Preview-only playback FPS and Loop Preview are session controls. After reopening a project, check Loop Preview as needed; these choices are not stored in the project.
+
+## Windows validation
+
+68 source tests passed; the frozen Windows runtime self-test passed. Six dense-field Full HD/QHD/4K landscape/portrait clips passed encode/decode checks.
+
+- Sparse (247 stars): uncached preview 23.37 ms in V1.5, 22.98 ms in V1.6; cached lookup 0.00030 ms.
+- Dense (25,938 stars): uncached preview 83.97 ms in V1.5, 58.53 ms in V1.6; cached lookup 0.00030 ms.
+
+Cache lookup timings exclude Qt display conversion. Synthetic timings are specific to the Windows runner; see the complete raw comparison and limitations in the report.

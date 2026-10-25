@@ -1,0 +1,8 @@
+{
+  "version": "1.6.0",
+  "repository": "https://github.com/1alex-vag/AG-Motion-Studio",
+  "built_commit": "47fc7c6121533a18da74cfa3cd7ff72d1131f454",
+  "workflow_run": "https://github.com/1alex-vag/AG-Motion-Studio/actions/runs/40244226179",
+  "original_ci_zip_sha256": "cdbb0b3c7ef3343fc223d8b997d3c2bb0c4c7f230fbcda1c0873dda06a69282e",
+  "runtime_modification": "None. Only external documentation and source revision metadata updated after native validation."
+}
