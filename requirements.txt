@@ -6,4 +6,6 @@ imageio>=2.34
 imageio-ffmpeg>=0.4.9
 astropy>=6.0
 tifffile>=2024.1.30
-numba>=0.60
+numba>=0.60; platform_system != "Darwin" or platform_machine != "x86_64"
+numba==0.62.1; platform_system == "Darwin" and platform_machine == "x86_64"
+llvmlite==0.45.1; platform_system == "Darwin" and platform_machine == "x86_64"

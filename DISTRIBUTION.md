@@ -8,6 +8,8 @@ Build Windows: run BUILD_WINDOWS.bat. Build macOS: run BUILD_MAC.command.
 Or run: python packaging/build_release.py --output release
 Build dependencies and the test runner are pinned in requirements-build.txt and
 requirements-lock.txt. macOS builds are per architecture (Apple Silicon/Intel).
+Intel macOS uses the last supported binary Numba 0.62.1 / llvmlite 0.45.1 pair;
+Windows and Apple Silicon use the current locked accelerated runtime.
 
 The GitHub workflow builds Windows x64, macOS arm64 and macOS x86_64. It first runs
 all source tests, freezes the app, and runs the actual executable with system
