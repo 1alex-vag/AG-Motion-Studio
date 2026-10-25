@@ -121,3 +121,16 @@ def test_style_project_document_and_cache_limits():
         assert win.project_document()['star_style']['size_scale']==.85
         win.cache_memory.setValue(64);assert win.preview_cache.maximum_bytes==64*1024**2
     finally:wait_idle(win);win.close()
+
+
+def test_fractional_minification_preserves_observed_rgb_flux():
+    from motionstudio.star_catalog import detect_stars,DetectionSettings
+    from motionstudio.sprites import prepare_atlas
+    stars=np.zeros((30,40,3),np.float32)
+    stars[12:15,19:22]=np.array([[.01,.07,.01],[.07,.7,.07],[.01,.07,.01]])[...,None]*np.array([1.,.5,.2])
+    catalog=detect_stars(stars,DetectionSettings(min_area=1))
+    assert len(catalog)==1
+    for scale in (.23,.5,.73):
+        atlas,meta=prepare_atlas(catalog,scale,scale,style={'preserve_size':True,'bloom':0.,'sharpness':.7})
+        expected=catalog.sprites[0].sum(axis=(0,1))*scale**2
+        np.testing.assert_allclose(atlas.sum(axis=0),expected,rtol=2e-5,atol=1e-7)

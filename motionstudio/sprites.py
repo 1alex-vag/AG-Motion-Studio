@@ -30,11 +30,22 @@ def prepare_atlas(catalog,sx,sy,bloom=False,style=None):
         nw=max(1,int(math.ceil(sw*tx)));nh=max(1,int(math.ceil(sh*ty)))
         if preserve:
             # Area prefilter once for minification; exact affine pixel-center map.
-            source=sprite
-            if min(tx,ty)<.65:
-                source=cv2.GaussianBlur(source,(0,0),max(.01,.35/min(tx,ty)))
-            transform=np.array([[tx,0,(tx-1)/2],[0,ty,(ty-1)/2]],np.float32)
-            data=cv2.warpAffine(source,transform,(nw,nh),flags=cv2.INTER_LINEAR,borderMode=cv2.BORDER_CONSTANT)
+            if tx<1 or ty<1:
+                # Exact rectangular pixel-area integration at the intended scale.
+                # Gaussian preblur followed by bilinear sampling loses tiny cores.
+                integral=np.pad(sprite.astype(np.float64),((1,0),(1,0),(0,0))).cumsum(0).cumsum(1)
+                xs=np.minimum(np.arange(nw+1)/tx,sw);ys=np.minimum(np.arange(nh+1)/ty,sh)
+                ix=np.floor(xs).astype(int);iy=np.floor(ys).astype(int)
+                fx=(xs-ix)[None,:,None];fy=(ys-iy)[:,None,None]
+                jx=np.minimum(ix+1,sw);jy=np.minimum(iy+1,sh)
+                rows0=integral[iy[:,None],ix]*(1-fx)+integral[iy[:,None],jx]*fx
+                rows1=integral[jy[:,None],ix]*(1-fx)+integral[jy[:,None],jx]*fx
+                cumulative=rows0*(1-fy)+rows1*fy
+                data=((cumulative[1:,1:]-cumulative[:-1,1:]-cumulative[1:,:-1]+cumulative[:-1,:-1])*tx*ty).astype(np.float32)
+                data=np.maximum(data,0)
+            else:
+                transform=np.array([[tx,0,(tx-1)/2],[0,ty,(ty-1)/2]],np.float32)
+                data=cv2.warpAffine(sprite,transform,(nw,nh),flags=cv2.INTER_LINEAR,borderMode=cv2.BORDER_CONSTANT)
             ax=(catalog.x[i]-catalog.sprite_origins[i,0]+.5)*tx-.5
             ay=(catalog.y[i]-catalog.sprite_origins[i,1]+.5)*ty-.5
         else:
