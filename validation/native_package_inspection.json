@@ -1,0 +1,101 @@
+[
+  {
+    "artifact_id": 12608457666,
+    "package": "AG_Astro_Motion_Studio_v1.5_macOS.zip",
+    "original_sha256": "e1714089ee66e2fc74d79fee45dbcc079814c6d2ef4eca8ede93ee120bfa7282",
+    "bytes": 164269361,
+    "sha256": "6dbce90672213f45d306d13a1204ae757d5a8329908ec461abee693214fb9e70",
+    "build": {
+      "system": "macOS",
+      "architecture": "arm64",
+      "python": "3.12.10",
+      "version": "1.5.0",
+      "self_test_passed": true
+    },
+    "smoke": {
+      "version": "1.5.0",
+      "frozen": true,
+      "ok": true,
+      "qt": true,
+      "compiled_renderer": true,
+      "ffmpeg": "/Users/runner/work/AG-Motion-Studio/AG-Motion-Studio/release/AG_Astro_Motion_Studio_v1.5_macOS/AG Astro Motion Studio.app/Contents/Frameworks/imageio_ffmpeg/binaries/ffmpeg-macos-aarch64-v7.1",
+      "video": {
+        "quality": 18,
+        "encoder": "libx264",
+        "workers": 1,
+        "frames": 2
+      },
+      "depth_editor": true,
+      "volumetric_loop": true,
+      "fits": true,
+      "tiff": true
+    },
+    "runtime_unchanged": true
+  },
+  {
+    "artifact_id": 12609178289,
+    "package": "AG_Astro_Motion_Studio_v1.5_macOS_x86_64.zip",
+    "original_sha256": "5263b601822034960ca0ea94ba58d32c1e8191469f97b20e236a8b06cf2c6832",
+    "bytes": 164977973,
+    "sha256": "ffe17421adaf401dc533ed9dd6fd8557612f66580b883ff7c556694543f3d4d7",
+    "build": {
+      "system": "macOS",
+      "architecture": "x86_64",
+      "python": "3.12.10",
+      "version": "1.5.0",
+      "self_test_passed": true
+    },
+    "smoke": {
+      "version": "1.5.0",
+      "frozen": true,
+      "ok": true,
+      "qt": true,
+      "compiled_renderer": true,
+      "ffmpeg": "/Users/runner/work/AG-Motion-Studio/AG-Motion-Studio/release/AG_Astro_Motion_Studio_v1.5_macOS_x86_64/AG Astro Motion Studio.app/Contents/Frameworks/imageio_ffmpeg/binaries/ffmpeg-macos-x86_64-v7.1",
+      "video": {
+        "quality": 18,
+        "encoder": "libx264",
+        "workers": 1,
+        "frames": 2
+      },
+      "depth_editor": true,
+      "volumetric_loop": true,
+      "fits": true,
+      "tiff": true
+    },
+    "runtime_unchanged": true
+  },
+  {
+    "artifact_id": 12609426487,
+    "package": "AG_Astro_Motion_Studio_v1.5_Windows.zip",
+    "original_sha256": "2f6798e54503fd5f5c5be7d2e852fc4331b827f42ff369b77fffc071311c2c5b",
+    "bytes": 192074004,
+    "sha256": "6bd95aa1b6a08e546efcea9a2f9360494b9157edde98816120b71f217852e07e",
+    "build": {
+      "system": "Windows",
+      "architecture": "AMD64",
+      "python": "3.12.10",
+      "version": "1.5.0",
+      "self_test_passed": true
+    },
+    "smoke": {
+      "version": "1.5.0",
+      "frozen": true,
+      "ok": true,
+      "qt": true,
+      "compiled_renderer": true,
+      "ffmpeg": "D:\\a\\AG-Motion-Studio\\AG-Motion-Studio\\release\\AG_Astro_Motion_Studio_v1.5_Windows\\AG_Astro_Motion_Studio_v1.5\\_internal\\imageio_ffmpeg\\binaries\\ffmpeg-win-x86_64-v7.1.exe",
+      "video": {
+        "quality": 18,
+        "encoder": "libx264",
+        "workers": 1,
+        "frames": 2
+      },
+      "depth_editor": true,
+      "volumetric_loop": true,
+      "fits": true,
+      "tiff": true
+    },
+    "runtime_unchanged": true
+  }
+]

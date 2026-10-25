@@ -1,0 +1,222 @@
+{
+  "built_commit": "0b7e39404bd30a49838870ac6c80469934991145",
+  "workflow_run": 40220128690,
+  "jobs": [
+    {
+      "job": {
+        "id": 121249688360,
+        "name": "native (windows-2022, Windows-x64)",
+        "status": "completed",
+        "conclusion": "success",
+        "run_id": 40220128690,
+        "logs_url": null,
+        "steps": [
+          {
+            "name": "Set up job",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 1
+          },
+          {
+            "name": "Run actions/checkout@v4",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 2
+          },
+          {
+            "name": "Run actions/setup-python@v5",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 3
+          },
+          {
+            "name": "Install locked build dependencies",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 4
+          },
+          {
+            "name": "Test, freeze, smoke-test and package",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 5
+          },
+          {
+            "name": "Upload native package and validation evidence",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 6
+          },
+          {
+            "name": "Post Run actions/setup-python@v5",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 11
+          },
+          {
+            "name": "Post Run actions/checkout@v4",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 12
+          },
+          {
+            "name": "Complete job",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 13
+          }
+        ]
+      },
+      "tests": [
+        "2026-10-25T18:13:29.7117448Z 59 passed in 10.93s\r"
+      ],
+      "packageLines": [
+        "2026-10-25T18:15:09.9262233Z {\"archive\": \"D:\\\\a\\\\AG-Motion-Studio\\\\AG-Motion-Studio\\\\release\\\\AG_Astro_Motion_Studio_v1.5_Windows.zip\", \"system\": \"Windows\", \"architecture\": \"AMD64\", \"self_test\": \"D:\\\\a\\\\AG-Motion-Studio\\\\AG-Motion-Studio\\\\release\\\\AG_Astro_Motion_Studio_v1.5_Windows\\\\PACKAGED_SELF_TEST.json\"}\r"
+      ]
+    },
+    {
+      "job": {
+        "id": 121249688524,
+        "name": "native (macos-15, macOS-arm64)",
+        "status": "completed",
+        "conclusion": "success",
+        "run_id": 40220128690,
+        "logs_url": null,
+        "steps": [
+          {
+            "name": "Set up job",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 1
+          },
+          {
+            "name": "Run actions/checkout@v4",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 2
+          },
+          {
+            "name": "Run actions/setup-python@v5",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 3
+          },
+          {
+            "name": "Install locked build dependencies",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 4
+          },
+          {
+            "name": "Test, freeze, smoke-test and package",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 5
+          },
+          {
+            "name": "Upload native package and validation evidence",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 6
+          },
+          {
+            "name": "Post Run actions/setup-python@v5",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 11
+          },
+          {
+            "name": "Post Run actions/checkout@v4",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 12
+          },
+          {
+            "name": "Complete job",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 13
+          }
+        ]
+      },
+      "tests": [
+        "2026-10-25T18:13:03.4738290Z 59 passed in 6.83s"
+      ],
+      "packageLines": [
+        "2026-10-25T18:14:28.4719850Z {\"archive\": \"/Users/runner/work/AG-Motion-Studio/AG-Motion-Studio/release/AG_Astro_Motion_Studio_v1.5_macOS.zip\", \"system\": \"macOS\", \"architecture\": \"arm64\", \"self_test\": \"/Users/runner/work/AG-Motion-Studio/AG-Motion-Studio/release/AG_Astro_Motion_Studio_v1.5_macOS/PACKAGED_SELF_TEST.json\"}"
+      ]
+    },
+    {
+      "job": {
+        "id": 121249688580,
+        "name": "native (macos-15-intel, macOS-x86_64)",
+        "status": "completed",
+        "conclusion": "success",
+        "run_id": 40220128690,
+        "logs_url": null,
+        "steps": [
+          {
+            "name": "Set up job",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 1
+          },
+          {
+            "name": "Run actions/checkout@v4",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 2
+          },
+          {
+            "name": "Run actions/setup-python@v5",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 3
+          },
+          {
+            "name": "Install locked build dependencies",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 4
+          },
+          {
+            "name": "Test, freeze, smoke-test and package",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 5
+          },
+          {
+            "name": "Upload native package and validation evidence",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 6
+          },
+          {
+            "name": "Post Run actions/setup-python@v5",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 11
+          },
+          {
+            "name": "Post Run actions/checkout@v4",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 12
+          },
+          {
+            "name": "Complete job",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 13
+          }
+        ]
+      },
+      "tests": [
+        "2026-10-25T18:13:42.7164030Z 59 passed in 15.14s"
+      ],
+      "packageLines": [
+        "2026-10-25T18:16:40.5107140Z {\"archive\": \"/Users/runner/work/AG-Motion-Studio/AG-Motion-Studio/release/AG_Astro_Motion_Studio_v1.5_macOS_x86_64.zip\", \"system\": \"macOS\", \"architecture\": \"x86_64\", \"self_test\": \"/Users/runner/work/AG-Motion-Studio/AG-Motion-Studio/release/AG_Astro_Motion_Studio_v1.5_macOS_x86_64/PACKAGED_SELF_TEST.json\"}"
+      ]
+    }
+  ]
+}

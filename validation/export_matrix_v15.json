@@ -1,0 +1,218 @@
+[
+  {
+    "orientation": "Landscape",
+    "width": 1280,
+    "height": 720,
+    "fps": 24,
+    "frames": 1,
+    "seconds": 0.29099964200031536,
+    "ok": true
+  },
+  {
+    "orientation": "Landscape",
+    "width": 1280,
+    "height": 720,
+    "fps": 30,
+    "frames": 1,
+    "seconds": 0.21491708899975492,
+    "ok": true
+  },
+  {
+    "orientation": "Landscape",
+    "width": 1280,
+    "height": 720,
+    "fps": 60,
+    "frames": 1,
+    "seconds": 0.22289632799947867,
+    "ok": true
+  },
+  {
+    "orientation": "Landscape",
+    "width": 1920,
+    "height": 1080,
+    "fps": 24,
+    "frames": 1,
+    "seconds": 0.36404820200004906,
+    "ok": true
+  },
+  {
+    "orientation": "Landscape",
+    "width": 1920,
+    "height": 1080,
+    "fps": 30,
+    "frames": 1,
+    "seconds": 0.358805384000334,
+    "ok": true
+  },
+  {
+    "orientation": "Landscape",
+    "width": 1920,
+    "height": 1080,
+    "fps": 60,
+    "frames": 1,
+    "seconds": 0.34936873500009824,
+    "ok": true
+  },
+  {
+    "orientation": "Landscape",
+    "width": 2560,
+    "height": 1440,
+    "fps": 24,
+    "frames": 1,
+    "seconds": 0.6836390079997727,
+    "ok": true
+  },
+  {
+    "orientation": "Landscape",
+    "width": 2560,
+    "height": 1440,
+    "fps": 30,
+    "frames": 1,
+    "seconds": 0.7944617109997125,
+    "ok": true
+  },
+  {
+    "orientation": "Landscape",
+    "width": 2560,
+    "height": 1440,
+    "fps": 60,
+    "frames": 1,
+    "seconds": 0.8104411800004527,
+    "ok": true
+  },
+  {
+    "orientation": "Landscape",
+    "width": 3840,
+    "height": 2160,
+    "fps": 24,
+    "frames": 1,
+    "seconds": 1.6023401729999023,
+    "ok": true
+  },
+  {
+    "orientation": "Landscape",
+    "width": 3840,
+    "height": 2160,
+    "fps": 30,
+    "frames": 1,
+    "seconds": 1.5770818629998757,
+    "ok": true
+  },
+  {
+    "orientation": "Landscape",
+    "width": 3840,
+    "height": 2160,
+    "fps": 60,
+    "frames": 1,
+    "seconds": 1.5783432709995395,
+    "ok": true
+  },
+  {
+    "orientation": "Portrait",
+    "width": 720,
+    "height": 1280,
+    "fps": 24,
+    "frames": 1,
+    "seconds": 0.16776413900061016,
+    "ok": true
+  },
+  {
+    "orientation": "Portrait",
+    "width": 720,
+    "height": 1280,
+    "fps": 30,
+    "frames": 1,
+    "seconds": 0.17257383599917375,
+    "ok": true
+  },
+  {
+    "orientation": "Portrait",
+    "width": 720,
+    "height": 1280,
+    "fps": 60,
+    "frames": 1,
+    "seconds": 0.18996263899953192,
+    "ok": true
+  },
+  {
+    "orientation": "Portrait",
+    "width": 1080,
+    "height": 1920,
+    "fps": 24,
+    "frames": 1,
+    "seconds": 0.37503652600025816,
+    "ok": true
+  },
+  {
+    "orientation": "Portrait",
+    "width": 1080,
+    "height": 1920,
+    "fps": 30,
+    "frames": 1,
+    "seconds": 0.4035179610000341,
+    "ok": true
+  },
+  {
+    "orientation": "Portrait",
+    "width": 1080,
+    "height": 1920,
+    "fps": 60,
+    "frames": 1,
+    "seconds": 0.42319685100028437,
+    "ok": true
+  },
+  {
+    "orientation": "Portrait",
+    "width": 1440,
+    "height": 2560,
+    "fps": 24,
+    "frames": 1,
+    "seconds": 0.8244124719994943,
+    "ok": true
+  },
+  {
+    "orientation": "Portrait",
+    "width": 1440,
+    "height": 2560,
+    "fps": 30,
+    "frames": 1,
+    "seconds": 0.8205725790003271,
+    "ok": true
+  },
+  {
+    "orientation": "Portrait",
+    "width": 1440,
+    "height": 2560,
+    "fps": 60,
+    "frames": 1,
+    "seconds": 0.7333799740008544,
+    "ok": true
+  },
+  {
+    "orientation": "Portrait",
+    "width": 2160,
+    "height": 3840,
+    "fps": 24,
+    "frames": 1,
+    "seconds": 1.6638349570002902,
+    "ok": true
+  },
+  {
+    "orientation": "Portrait",
+    "width": 2160,
+    "height": 3840,
+    "fps": 30,
+    "frames": 1,
+    "seconds": 1.6064830069999516,
+    "ok": true
+  },
+  {
+    "orientation": "Portrait",
+    "width": 2160,
+    "height": 3840,
+    "fps": 60,
+    "frames": 1,
+    "seconds": 1.7159698799996477,
+    "ok": true
+  }
+]

@@ -1,0 +1,18 @@
+{
+  "version": "1.5.0",
+  "frozen": true,
+  "ok": true,
+  "qt": true,
+  "compiled_renderer": true,
+  "ffmpeg": "/workspace/scratch/82b1cf00ac2b/v15_native_validation/AG_Astro_Motion_Studio_v1.5_Linux_validation/AG_Astro_Motion_Studio_v1.5/_internal/imageio_ffmpeg/binaries/ffmpeg-linux-x86_64-v7.0.2",
+  "video": {
+    "quality": 18,
+    "encoder": "libx264",
+    "workers": 1,
+    "frames": 2
+  },
+  "depth_editor": true,
+  "volumetric_loop": true,
+  "fits": true,
+  "tiff": true
+}

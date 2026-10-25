@@ -22,3 +22,16 @@ controls, smooth camera paths, loop modes, reset and input compatibility handlin
 
 See VALIDATION.md and DISTRIBUTION.md for actual build/test evidence and remaining
 platform limitations. Build scripts alone are not presented as native binaries.
+
+## Validation
+
+- 59 automated tests passed on Windows x64, macOS Apple Silicon and macOS Intel.
+- Each native executable passed a real offline startup/render smoke test with
+  its embedded Python, compiled Numba renderer and bundled FFmpeg.
+- All 24 resolution/FPS combinations were CPU-encoded and decoded through 4K,
+  using short synthetic plumbing checks.
+- Fast Preview was 4.93× faster in the documented synthetic volumetric comparison;
+  the exact full-duration loop endpoint had zero pixel error.
+- macOS packages are architecture-specific and are not Apple-notarized. Real GPU
+  hardware, end-user clean machines and long dense-field 4K renders remain outside
+  this validation. See VALIDATION.md for full scope and evidence.

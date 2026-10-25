@@ -1,0 +1,23 @@
+{
+  "fast_preview": {
+    "width": 640,
+    "height": 360,
+    "preparation_seconds": 0.27338953300022695,
+    "median_frame_seconds": 0.02948037700025452
+  },
+  "final": {
+    "width": 1280,
+    "height": 720,
+    "preparation_seconds": 0.35634190699965984,
+    "median_frame_seconds": 0.14528200199947605
+  },
+  "ratio": 4.928091726853484,
+  "stars": 1419,
+  "endpoint_max_error": 0,
+  "demo": {
+    "quality": 18,
+    "encoder": "libx264",
+    "workers": 2,
+    "frames": 120
+  }
+}

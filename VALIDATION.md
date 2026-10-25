@@ -24,14 +24,18 @@ volumetric treatment and subject anchor without changing detected star counts.
 
 ## Source tests
 
-58 automated tests passed in the clean Linux Python 3.12 build environment.
+59 automated tests passed independently on each final native runner:
+Windows x64: 10.93 s; macOS Apple Silicon: 6.83 s; macOS Intel: 15.14 s.
+The clean Linux environment passed the preceding 58-test suite and the added
+custom-dimension regression test separately.
 All 41 previous behavior checks were retained; GUI tests now await completion of
-the asynchronous methods. The 17 added checks cover refinement, depth versions,
+the asynchronous methods. The 18 added checks cover refinement, depth versions,
 paint geometry/history, actual editor mouse events, timer responsiveness while
 work is blocked, duplicate-job suppression, failure recovery, manual apply/cancel,
 moved project roundtrips, every export preset/FPS setting, volumetric identity and
 subtlety, shared anchor projection, presets, UI wording, path recovery and quality/
-frame-status propagation.
+frame-status propagation. The final regression also verifies that odd custom
+export dimensions cannot break depth generation, loop-preview or debug actions.
 
 A strict 40-ms timer-count assertion was found to depend on macOS timer coalescing.
 It was replaced with an event-driven bounded heartbeat check while the worker
@@ -82,16 +86,24 @@ signatures, volumetric loop endpoint equality, real CPU H.264 encode/decode,
 TIFF and FITS. PACKAGED_SELF_TEST.json and BUILD_INFO.json are included in each
 native distribution.
 
-Successful native jobs already observed during this implementation:
+Final common build run:
+https://github.com/1alex-vag/AG-Motion-Studio/actions/runs/40220128690
 
-| Platform | GitHub run | Job | Result |
-|---|---:|---:|---|
-| Windows x64 | 40219194661 | 121246853575 | Source tests, frozen app self-test and archive succeeded |
-| macOS Apple Silicon | 40219194661 | 121246853487 | Source tests, frozen app self-test and archive succeeded |
-| macOS Intel | 40219474717 | 121247697009 | Source tests, frozen app self-test and archive succeeded |
+Built application source commit: `0b7e39404bd30a49838870ac6c80469934991145`.
 
-A common final run at the corrected test/dependency commit is recorded below
-once completed. Intel macOS uses Numba 0.62.1 / llvmlite 0.45.1 binary wheels,
+| Platform | Job | Source tests | Native startup/render test |
+|---|---:|---|---|
+| Windows x64 | 121249688360 | 59 passed | Passed |
+| macOS Apple Silicon | 121249688524 | 59 passed | Passed |
+| macOS Intel | 121249688580 | 59 passed | Passed |
+
+All three jobs completed successfully. The delivered ZIPs retain the tested
+application files byte-for-byte; external release documentation is updated with
+this final evidence after the CI build. Source revision and original CI package
+hash are recorded in SOURCE_REVISION.json. Runtime-file CRC, size and permission
+metadata are verified against the original CI archive during final packaging.
+
+Intel macOS uses Numba 0.62.1 / llvmlite 0.45.1 binary wheels,
 because current upstream versions no longer publish Intel Mac wheels. The
 accelerated renderer is checked at runtime; there is no silent pure-Python
 substitution in a successful native package.
