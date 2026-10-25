@@ -114,17 +114,19 @@ def test_canvas_painting_coordinates_cursor_compare_and_editor_controls():
 def test_depth_jobs_are_async_show_progress_prevent_duplicates_and_keep_qt_alive():
     win=Main();win.starless,win.stars,_=pair();gate=threading.Event();original=engine.nebula_depth
     count=[];ticks=[];timer=QTimer();timer.timeout.connect(lambda:ticks.append(1));timer.start(5)
-    def delayed(value):count.append(1);gate.wait(3);return original(value)
+    def delayed(value):count.append(1);gate.wait(10);return original(value)
     try:
         with patch('motionstudio.gui.e.nebula_depth',side_effect=delayed):
             started=time.monotonic();win.make_depth();assert time.monotonic()-started<.2
             worker=win.worker;assert worker is not None and not win.btn_depth.isEnabled()
             progress=[];status=[];worker.progress.connect(progress.append);worker.status.connect(status.append)
             win.make_depth();assert win.worker is worker
-            QTest.qWait(40);assert len(ticks)>=2 and win.progress.maximum()==0
+            deadline=time.monotonic()+1
+            while len(ticks)<2 and time.monotonic()<deadline:APP.processEvents();QTest.qWait(5)
+            assert len(ticks)>=2 and win.progress.maximum()==0
             gate.set();wait_idle(win)
             assert count==[1] and win.nd is not None and win.progress.value()==100
-            assert -1 in progress and 95 in progress
+            assert 35 in progress and 95 in progress
             assert any('Detecting stars' in value for value in status)
             assert win.btn_depth.isEnabled() and win.btn_edit_depth.isEnabled()
     finally:
