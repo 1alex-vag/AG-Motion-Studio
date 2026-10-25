@@ -10,8 +10,15 @@ def main():
     parser=argparse.ArgumentParser();parser.add_argument('--output',type=Path,default=ROOT/'release');parser.add_argument('--skip-tests',action='store_true')
     args=parser.parse_args();out=args.output.resolve();out.mkdir(parents=True,exist_ok=True)
     env=dict(os.environ,QT_QPA_PLATFORM='offscreen')
-    if not args.skip_tests:subprocess.run([sys.executable,'-m','pytest','-q','tests'],cwd=ROOT,env=env,check=True)
+    (out/'validation').mkdir(exist_ok=True)
+    if not args.skip_tests:subprocess.run([sys.executable,'-m','pytest','-q','tests','--junitxml='+str(out/'validation'/'pytest.xml')],cwd=ROOT,env=env,check=True)
     subprocess.run([sys.executable,'tests/validate_v16.py','--output',str(out/'validation')],cwd=ROOT,env=env,check=True)
+    if not args.skip_tests:
+        import xml.etree.ElementTree as ET
+        suites=ET.parse(out/'validation'/'pytest.xml').getroot()
+        totals={key:sum(int(suite.get(key,0)) for suite in suites.iter('testsuite')) for key in ('tests','failures','errors','skipped')}
+        for report in (out/'validation'/'TEST_REPORT.md',ROOT/'VALIDATION.md'):
+            with report.open('a',encoding='utf-8') as stream:stream.write('\n\nPytest results: '+json.dumps(totals)+'. See validation/pytest.xml.\n')
     products=out/'build-products';dist=products/'dist';work=products/'work'
     subprocess.run([sys.executable,'-m','PyInstaller','--clean','--noconfirm','--distpath',str(dist),'--workpath',str(work),str(ROOT/'packaging'/'astro.spec')],cwd=ROOT,check=True)
     name='AG_Astro_Motion_Studio_v1.6'

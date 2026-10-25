@@ -682,7 +682,7 @@ class Main(QMainWindow):
         n,st=self.starless,self.stars;detection=self.detection_settings()
         try:settings=self._settings()
         except ValueError:settings=e.MotionSettings()  # depth generation is independent of export dimensions
-        config=self.cinematic_settings()
+        config=self.cinematic_settings();star_style=self.star_style()
         density=self.synthetic_density.value() if self.synthetic.isChecked() else 0
         scale=min(1.,640/max(settings.width,settings.height));w=max(2,int(settings.width*scale)//2*2);h=max(2,int(settings.height*scale)//2*2)
         def task(status,progress):
@@ -693,7 +693,7 @@ class Main(QMainWindow):
             status('Generating nebula protection…');progress(-1);protection=nebula_protection(n);progress(85)
             status('Building scene…');progress(-1)
             versions=DepthVersions(nd)
-            scene=s3.Scene(n,st,versions.current,sd,w,h,catalog=catalog,protection=protection,fast_preview=True,cinematic=config,synthetic_density=density)
+            scene=s3.Scene(n,st,versions.current,sd,w,h,catalog=catalog,protection=protection,fast_preview=True,cinematic=config,synthetic_density=density,star_style=star_style)
             progress(95)
             displays=[self._depth_display(value) for value in (nd,sd,protection)]
             return versions,catalog,sd,protection,displays,scene
@@ -947,7 +947,7 @@ class Main(QMainWindow):
         if hasattr(self,'btn_play'):self.btn_play.setText('▶ Play')
 
     def toggle_playback(self):
-        if self.playback_timer.isActive():self.pause_playback();return
+        if self.playback_timer.isActive():self.pause_playback();self.motion_preview();return
         if self.nd is None or self.worker is not None:return
         self.stop_loop()
         self._playback_start=self.duration.value()*self.timeline.value()/max(1,self.timeline.maximum())
@@ -1002,6 +1002,7 @@ class Main(QMainWindow):
         self._preview_latest=None
         cached=self.preview_cache.get(frame_key)
         if cached is not None:
+            self.preview_debounce.stop()
             self._show_preview(cached,t,duration,'Cached',manual);return
         payload=(request,frame_key,key,args,frames,t,duration,pose,render_args,settings.fps,manual)
         self._preview_latest=payload
