@@ -1,0 +1,16 @@
+numpy==2.3.5
+Pillow==12.3.0
+opencv-python-headless==5.0.0.93
+PyQt6==6.11.0
+PyQt6-Qt6==6.11.2
+PyQt6-sip==13.13.0
+imageio==2.38.1
+imageio-ffmpeg==0.6.0
+astropy==8.0.2
+astropy-iers-data==0.2026.10.19.0.52.1
+pyerfa==2.0.1.5
+tifffile==2026.10.15
+numba==0.68.0
+llvmlite==0.50.0
+packaging==26.3
+PyYAML==6.0.3

@@ -1,0 +1,41 @@
+name: Build and validate V1.5 native packages
+on:
+  push:
+    branches: [codex/ag-motion-studio-v1.5]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  native:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-2022
+            artifact: Windows-x64
+          - os: macos-15
+            artifact: macOS-arm64
+          - os: macos-15-intel
+            artifact: macOS-x86_64
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+          cache-dependency-path: requirements-build.txt
+      - name: Install locked build dependencies
+        run: python -m pip install -r requirements-build.txt
+      - name: Test, freeze, smoke-test and package
+        run: python packaging/build_release.py --output release
+      - name: Upload native package and validation evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: AG-Astro-Motion-Studio-V1.5-${{ matrix.artifact }}
+          path: |
+            release/*.zip
+            release/*/PACKAGED_SELF_TEST.json
+            release/*/BUILD_INFO.json
+          if-no-files-found: error

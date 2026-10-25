@@ -1,0 +1,9 @@
+numpy>=1.26
+Pillow>=10.0
+opencv-python-headless>=4.8
+PyQt6>=6.6
+imageio>=2.34
+imageio-ffmpeg>=0.4.9
+astropy>=6.0
+tifffile>=2024.1.30
+numba>=0.60

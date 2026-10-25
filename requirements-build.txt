@@ -1,0 +1,4 @@
+-r requirements-lock.txt
+pyinstaller==6.22.3
+pyinstaller-hooks-contrib==2026.9
+pytest==9.1.1

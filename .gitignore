@@ -1,0 +1,12 @@
+__pycache__/
+*.pyc
+*.nbc
+*.nbi
+.pytest_cache/
+.venv/
+.build-venv/
+release/
+build/
+dist/
+core
+core.*
