@@ -1,0 +1,153 @@
+{
+  "platform": "win32",
+  "baseline_commit": "553ed21bd09d514f0cdcf66f5c038e8e73d906c5",
+  "fields": {
+    "sparse": {
+      "v16": {
+        "stars": 247,
+        "prepare_seconds": 0.5962713000000122,
+        "first_preview_seconds": 1.1779902999999763,
+        "preview_median_seconds": 0.0229137000000037,
+        "repeat_without_cache_seconds": 0.11431079999999838,
+        "video_seconds": 1.4518070999999964,
+        "video": {
+          "quality": 18,
+          "encoder": "libx264",
+          "workers": 1,
+          "frames": 6
+        }
+      },
+      "v17": {
+        "stars": 247,
+        "prepare_seconds": 0.5801595000000361,
+        "first_preview_seconds": 0.17212620000003653,
+        "preview_median_seconds": 0.02293069999996078,
+        "repeat_without_cache_seconds": 0.11452039999994668,
+        "video_seconds": 1.4725399999999809,
+        "video": {
+          "quality": 18,
+          "encoder": "libx264",
+          "workers": 1,
+          "frames": 6
+        }
+      },
+      "renderer_speedup": 0.9992586358045281,
+      "video_speedup": 0.9859203145585282,
+      "cache": {
+        "fresh_seconds": 0.02211509999995087,
+        "retrieval_median_seconds": 3.000000106112566e-07,
+        "hits": 100,
+        "bytes": 817920,
+        "speedup": 73716.99739240299
+      }
+    },
+    "dense": {
+      "v16": {
+        "stars": 25938,
+        "prepare_seconds": 6.596469200000001,
+        "first_preview_seconds": 0.21378859999998667,
+        "preview_median_seconds": 0.061048799999980474,
+        "repeat_without_cache_seconds": 0.3081612000000291,
+        "video_seconds": 2.2272294000000556,
+        "video": {
+          "quality": 18,
+          "encoder": "libx264",
+          "workers": 1,
+          "frames": 6
+        }
+      },
+      "v17": {
+        "stars": 25938,
+        "prepare_seconds": 6.551502400000004,
+        "first_preview_seconds": 0.21000449999996817,
+        "preview_median_seconds": 0.06063539999991008,
+        "repeat_without_cache_seconds": 0.2994714999998678,
+        "video_seconds": 2.195972999999981,
+        "video": {
+          "quality": 18,
+          "encoder": "libx264",
+          "workers": 1,
+          "frames": 6
+        }
+      },
+      "renderer_speedup": 1.0068177995044316,
+      "video_speedup": 1.0142335083355192,
+      "cache": {
+        "fresh_seconds": 0.059599400000024616,
+        "retrieval_median_seconds": 3.000000106112566e-07,
+        "hits": 100,
+        "bytes": 817920,
+        "speedup": 198664.6596398098
+      }
+    }
+  },
+  "exports": [
+    {
+      "width": 1920,
+      "height": 1080,
+      "seconds": 0.893232800000078,
+      "stars": 25938,
+      "quality": 18,
+      "encoder": "libx264",
+      "workers": 2,
+      "frames": 3
+    },
+    {
+      "width": 1080,
+      "height": 1920,
+      "seconds": 0.8119216999999708,
+      "stars": 25938,
+      "quality": 18,
+      "encoder": "libx264",
+      "workers": 2,
+      "frames": 3
+    },
+    {
+      "width": 2560,
+      "height": 1440,
+      "seconds": 1.434261000000106,
+      "stars": 25938,
+      "quality": 18,
+      "encoder": "libx264",
+      "workers": 2,
+      "frames": 3
+    },
+    {
+      "width": 1440,
+      "height": 2560,
+      "seconds": 1.3234953999999561,
+      "stars": 25938,
+      "quality": 18,
+      "encoder": "libx264",
+      "workers": 2,
+      "frames": 3
+    },
+    {
+      "width": 3840,
+      "height": 2160,
+      "seconds": 3.6534641000000647,
+      "stars": 25938,
+      "quality": 18,
+      "encoder": "libx264",
+      "workers": 1,
+      "frames": 3
+    },
+    {
+      "width": 2160,
+      "height": 3840,
+      "seconds": 3.5859692000000223,
+      "stars": 25938,
+      "quality": 18,
+      "encoder": "libx264",
+      "workers": 1,
+      "frames": 3
+    }
+  ],
+  "built_preview": {
+    "build_seconds": 1.1404103999999506,
+    "frames": 16,
+    "bytes": 5374081,
+    "decode_median_seconds": 0.004599499999983436,
+    "render_calls_during_cached_playback": 0
+  }
+}
