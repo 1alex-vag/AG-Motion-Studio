@@ -128,3 +128,15 @@ class DepthPaint:
     def reset(self):
         self.begin();h,w=self.depth.shape;self._capture((0,0,w,h))
         self.depth[:]=self.generated;self.end()
+
+    def selected(self,mask,operation,strength=.3):
+        mask=np.clip(np.asarray(mask,np.float32),0,1)
+        if mask.shape!=self.depth.shape:raise ValueError('Selection dimensions must match depth')
+        self.begin();h,w=mask.shape;self._capture((0,0,w,h));amount=mask*strength
+        if operation=='Back':target=np.clip(self.depth-.2,0,1)
+        elif operation=='Forward':target=np.clip(self.depth+.2,0,1)
+        elif operation=='Smooth':target=cv2.GaussianBlur(self.depth,(0,0),3.)
+        elif operation=='Flatten':target=float(np.sum(self.depth*mask)/max(mask.sum(),1e-8))
+        elif operation=='Restore':target=self.generated
+        else:raise ValueError('Unknown selection operation')
+        self.depth[:]=self.depth*(1-amount)+target*amount;self.end()

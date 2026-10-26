@@ -1,8 +1,8 @@
 @echo off
 setlocal
-set "APP_SOURCE=%~dp0AG_Astro_Motion_Studio_v1.6"
+set "APP_SOURCE=%~dp0AG_Astro_Motion_Studio_v1.7"
 set "APP_TARGET=%LOCALAPPDATA%\AG Astro Motion Studio\Application"
-if not exist "%APP_SOURCE%\AG_Astro_Motion_Studio_v1.6.exe" (
+if not exist "%APP_SOURCE%\AG_Astro_Motion_Studio_v1.7.exe" (
  echo Extract the entire Windows release ZIP first. The application folder is missing.
  pause
  exit /b 1
@@ -15,5 +15,5 @@ if errorlevel 1 (
 )
 echo Installed to: %APP_TARGET%
 echo No Python installation or administrator rights are required.
-echo To start, open AG_Astro_Motion_Studio_v1.6.exe in that folder.
+echo To start, open AG_Astro_Motion_Studio_v1.7.exe in that folder.
 pause

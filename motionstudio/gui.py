@@ -20,6 +20,7 @@ from .star_catalog import detect_stars, depth_map, DetectionSettings, normalized
 from .protection import nebula_protection
 from .sprites import COMPILED as SPRITE_COMPILED
 from .jobs import Work
+from .numeric import IntControl as QSpinBox, FloatControl as QDoubleSpinBox
 from .depth_edit import DepthVersions, checked_depth
 from .depth_editor import DepthEditor
 from .projects import portable_reference, resolve_reference
@@ -108,7 +109,7 @@ class ImagePreview(QLabel):
 class Main(QMainWindow):
     def __init__(self):
         super().__init__()
-        self.setWindowTitle('AG Astro Motion Studio V1.6  •  ag_astrophotography')
+        self.setWindowTitle('AG Astro Motion Studio V1.7  •  ag_astrophotography')
         self.resize(1190, 790)
         self.setStyleSheet(STYLE)
         self.starless_path = self.star_path = None
@@ -117,6 +118,7 @@ class Main(QMainWindow):
         self.worker = None
         self.scene_cache = None
         self.preview_cache=PreviewCache()
+        self.built_preview=None
         self._preview_state=None
         self._preview_id=0
         self._preview_worker=None
@@ -128,6 +130,7 @@ class Main(QMainWindow):
         self._preview_seconds=0.
         self._playback_request_time=-1.
         self.catalog = None
+        self._star_atlases={}
         self.protection = None
         self.star_seed = 42
         self._last_duration = 8
@@ -210,6 +213,14 @@ class Main(QMainWindow):
         self.btn_maps.clicked.connect(self.export_maps)
         l.addWidget(self.btn_maps)
         self.depth_extras=[l.itemAt(i).widget() for i in range(l.count()) if l.itemAt(i).widget() is not self.btn_depth]
+        from .enhanced_depth import PROFILES
+        self.depth_profile=QComboBox();self.depth_profile.addItems(['Custom',*PROFILES]);l.addWidget(self.depth_profile)
+        self.enhanced_controls={}
+        for key,title,maximum,default in [('overall','Overall Depth',200,100),('fine','Fine Structure Depth',200,100),('dust','Dust Emphasis',200,100),('local','Local Depth Contrast',200,100),('bias','Dust Depth Bias',100,50),('smoothing','Depth Smoothing',100,40)]:
+            control=QSpinBox();control.setRange(0,maximum);control.setValue(default);control.setSuffix('%');control.setSingleStep(5)
+            row=QHBoxLayout();row.addWidget(QLabel(title));row.addWidget(control);l.addLayout(row);self.enhanced_controls[key]=control
+        self.depth_profile.currentTextChanged.connect(self.apply_depth_profile)
+        apply_depth=QPushButton('Apply Enhanced Depth');apply_depth.clicked.connect(self.enhance_depth);l.addWidget(apply_depth)
         left_col.addWidget(box2)
 
         cinematic_box=QGroupBox('CINEMATIC')
@@ -377,12 +388,12 @@ class Main(QMainWindow):
         g = QGridLayout(box3)
         self.mode = QComboBox();self.mode.addItems(['Parallax','Push In','Pull Out','Side Drift','Fly-through','Orbit','Manual'])
         self.mode.currentTextChanged.connect(self._mode_changed)
-        self.duration = QSpinBox();self.duration.setRange(1,600);self.duration.setValue(8);self.duration.setSuffix(' sec')
+        self.duration = QSpinBox();self.duration.setRange(1,300);self.duration.setValue(8);self.duration.setSuffix(' sec')
         self.fps = QComboBox();self.fps.addItems(['24','30','60']);self.fps.setCurrentIndex(1)
         self.orientation=QComboBox();self.orientation.addItems(['Landscape','Portrait'])
         self.preset=QComboBox();self.preset.addItems([f'{w}×{h}' for w,h in RESOLUTIONS['Landscape']]+['Custom'])
-        self.custom_width=QSpinBox();self.custom_width.setRange(2,8192);self.custom_width.setSingleStep(2);self.custom_width.setValue(1280)
-        self.custom_height=QSpinBox();self.custom_height.setRange(2,8192);self.custom_height.setSingleStep(2);self.custom_height.setValue(720)
+        self.custom_width=QSpinBox();self.custom_width.setRange(2,8192);self.custom_width.setSingleStep(16);self.custom_width.setValue(1280)
+        self.custom_height=QSpinBox();self.custom_height.setRange(2,8192);self.custom_height.setSingleStep(16);self.custom_height.setValue(720)
         self.intensity = QSlider(Qt.Orientation.Horizontal);self.intensity.setRange(0,100);self.intensity.setValue(50)
         for row,(lab,widget) in enumerate([('Mode',self.mode),('Duration',self.duration),('FPS',self.fps),('Format',self.preset),('Motion strength',self.intensity)]):
             g.addWidget(QLabel(lab),row,0);g.addWidget(widget,row,1)
@@ -443,6 +454,7 @@ class Main(QMainWindow):
         self.timeline.sliderReleased.connect(self._timeline_released)
         self.btn_play=QPushButton('▶ Play');self.btn_play.clicked.connect(self.toggle_playback)
         frame_control.addWidget(self.btn_play)
+        self.btn_build=QPushButton('Build Preview');self.btn_build.clicked.connect(self.build_preview);frame_control.addWidget(self.btn_build)
         self.loop_preview=QCheckBox('Loop Preview')
         self.loop_mode.currentTextChanged.connect(lambda text:self.loop_preview.setChecked(text!='Off'))
         frame_control.addWidget(self.loop_preview)
@@ -465,6 +477,14 @@ class Main(QMainWindow):
         self.fps.currentTextChanged.connect(self._sync_timeline)
         self._sync_timeline()
         self._update_buttons()
+        from .video import working_hardware_encoders
+        self.encoder_probe=Work(lambda status,progress:working_hardware_encoders())
+        self.encoder_probe.done.connect(self._encoder_ready)
+        self.encoder_probe.start()
+
+    def _encoder_ready(self,available):
+        for index,name in enumerate(('nvenc','qsv','amf'),2):self.encoder.model().item(index).setEnabled(name in available)
+        self.encoder.setToolTip('Rendering: CPU / Numba. Working hardware video encoders: '+(', '.join(available) or 'none; CPU libx264 fallback'))
 
     def _sync_timeline(self,*_):
         ratio=self.timeline.value()/max(1,self.timeline.maximum())
@@ -481,6 +501,7 @@ class Main(QMainWindow):
         for group in self.edit_groups:group.setEnabled(not busy)
         self.timeline.setEnabled(not busy)
         self.btn_play.setEnabled(maps and not busy)
+        self.btn_build.setEnabled(maps and not busy)
         self.btn_depth.setEnabled(ready and not busy)
         self.btn_refine.setEnabled(maps and not busy)
         self.btn_edit_depth.setEnabled(maps and not busy)
@@ -603,8 +624,9 @@ class Main(QMainWindow):
             motion_over_nebula=self.nebula_motion.value()/100,star_intensity=self.star_intensity.value()/100)
 
     def _clear_generated(self):
+        if self.built_preview is not None:self.built_preview.close();self.built_preview=None
         self.pause_playback();self._preview_id+=1;self._preview_latest=None
-        self.preview_cache.clear();self._preview_state=None
+        self.preview_cache.clear();self._preview_state=None;self._star_atlases.clear()
         self.stop_loop();self.preview_debounce.stop()
         self.nd=self.sd=self.catalog=self.protection=self.scene_cache=self.depth_versions=None
         self._pending_preview=None
@@ -812,7 +834,7 @@ class Main(QMainWindow):
 
     def about_dialog(self):
         QMessageBox.about(self,'About AG Astro Motion Studio',
-            f'AG Astro Motion Studio V1.6 ({__version__})\nDeveloped by ag_astrophotography\n\n'
+            f'AG Astro Motion Studio V1.7 ({__version__})\nDeveloped by ag_astrophotography\n\n'
             'Artistic 2.5D animation from original starless and star-mask images.\nDepth Refinement runs locally and works offline.')
 
     def _mode_changed(self, mode):
@@ -924,11 +946,64 @@ class Main(QMainWindow):
         self._start_work(task,lambda image:self._display_view('3D Preview',image,'Top view ready — 100%.'),'preview','Preparing top view…')
 
     def _scene_snapshot(self,w,h,fast):
+        atlas_key=(w,h,id(self.catalog),repr(self.star_style()))
+        if atlas_key not in self._star_atlases:
+            if len(self._star_atlases)>=4:self._star_atlases.clear()
+            self._star_atlases[atlas_key]={}
         config=self.cinematic_settings();density=self.synthetic_density.value() if self.synthetic.isChecked() else 0
         key=(w,h,fast,density,id(self.nd),id(self.sd),id(self.starless),id(self.stars),id(self.catalog),id(self.protection),repr(config),repr(self.star_style()))
         args=dict(starless=self.starless,stars=self.stars,nebdepth=self.nd,stardepth=self.sd,out_w=w,out_h=h,
-                  catalog=self.catalog,protection=self.protection,fast_preview=fast,synthetic_density=density,cinematic=config,star_style=self.star_style())
+                  catalog=self.catalog,protection=self.protection,fast_preview=fast,synthetic_density=density,cinematic=config,star_style=self.star_style(),atlas_cache=self._star_atlases[atlas_key] if not density else None)
         return key,args
+
+    def apply_depth_profile(self,name):
+        from .enhanced_depth import PROFILES
+        if name in PROFILES:
+            for key,value in zip(('overall','fine','dust','local','bias','smoothing'),PROFILES[name]):self.enhanced_controls[key].setValue(round(value*100))
+    def enhance_depth(self):
+        if self.nd is None or self.worker is not None:return
+        from .enhanced_depth import combine
+        versions=self.depth_versions;image=self.starless
+        base=versions.refined if versions.refined is not None else versions.generated
+        controls={k:v.value()/100 for k,v in self.enhanced_controls.items()}
+        def done(result):
+            self.depth_versions=DepthVersions(versions.generated,result, None if versions.manual is None else np.clip(result+(versions.manual-base),0,1))
+            self.nd=self.depth_versions.current;self.scene_cache=None
+            self.views['Nebula depth'].set_rgb(self._depth_display(self.nd));self._pending_preview=False
+        self._start_work(lambda status,progress:combine(image,base,**controls)[0],done,'enhanced-depth','Applying multiscale depth…')
+    def build_preview(self):
+        if self.nd is None or self.worker is not None:return
+        from .preview_sequence import PreviewSequence
+        try:settings=self._settings()
+        except ValueError as exc:self.status.setText(str(exc));return
+        fast=self.preview_quality.currentIndex()==0;scale=min(1.,(640 if fast else 900)/max(settings.width,settings.height))
+        w=max(2,int(settings.width*scale)//2*2);h=max(2,int(settings.height*scale)//2*2)
+        key,args=self._scene_snapshot(w,h,fast);frames=self.render_keyframes();kwargs=self._render_arguments()
+        state=(key,repr(frames),repr(kwargs),settings.duration,settings.fps)
+        fps=15 if self.playback_fps.currentText()=='Auto' else int(self.playback_fps.currentText())
+        count=max(2,settings.duration*fps+1);cached=self.scene_cache
+        if self.built_preview is not None and self.built_preview.state==state and self.built_preview.count==count:
+            self.status.setText('Preview already built — cached sequence reused.');return
+        def task(status,progress):
+            scene=cached[1] if cached is not None and cached[0]==key else s3.Scene(**args)
+            sequence=PreviewSequence(state,settings.duration,count)
+            try:
+                for i in range(count):
+                    t=settings.duration*i/(count-1)
+                    frame_key=(state,round(t,9),'None')
+                    # Build runs off-thread; it reads a snapshot of the GUI-owned LRU.
+                    entry=snapshot.get(frame_key)
+                    pose=scene.pose_at(frames,t,settings.duration)
+                    image=entry[1] if entry else scene.render(pose,previous_pose=scene.pose_at(frames,t-.5/settings.fps if scene.cinematic.loop!='Off' else max(0,t-.5/settings.fps),settings.duration),**kwargs)
+                    sequence.put(i,image);progress(round(100*(i+1)/count));status(f'Building preview {i+1} / {count}')
+                return sequence,scene
+            except BaseException:sequence.close();raise
+        snapshot=dict(self.preview_cache.frames)
+        def done(result):
+            if self.built_preview is not None:self.built_preview.close()
+            self.built_preview,scene=result;self.scene_cache=(key,scene);self._preview_state=state
+            self.status.setText('Preview built. Playback and dragging reuse the lossless temporary sequence.')
+        self._start_work(task,done,'build-preview','Building preview…')
 
     def star_style(self):
         return dict(preserve_size=self.preserve_size.isChecked(),
@@ -995,8 +1070,19 @@ class Main(QMainWindow):
         render_args=self._render_arguments()
         state=(key,repr(frames),repr(render_args),duration,settings.fps)
         if state!=self._preview_state:
+            if self.built_preview is not None:self.built_preview.close();self.built_preview=None
             self.preview_cache.clear();self._preview_state=state
             self.preview_status.setText('Preview cache updated')
+        if self.built_preview is not None and self.built_preview.state==state and not manual:
+            if self.playback_timer.isActive() or self.timeline.isSliderDown() or abs(t/self.built_preview.duration*(self.built_preview.count-1)-round(t/self.built_preview.duration*(self.built_preview.count-1)))<1e-8:
+                current=s3.camera_at(frames,t)
+                self._show_preview((current,self.built_preview.get(t)),t,duration,'Built preview');return
+        if debounce and self.timeline.isSliderDown():
+            self._preview_latest=None;self.preview_debounce.stop()
+            if self.preview_cache.frames:
+                candidates=[(abs(k[1]-t),v) for k,v in self.preview_cache.frames.items() if k[0]==state]
+                if candidates:self._show_preview(min(candidates,key=lambda x:x[0])[1],t,duration,'Nearest cached')
+            return
         frame_key=(state,round(t,9),repr(pose))
         # Only the newest request survives. Running work keeps its immutable snapshot.
         self._preview_latest=None
@@ -1132,8 +1218,8 @@ class Main(QMainWindow):
         return frames
 
     def project_document(self):
-        return {'schema':6,'application':'AG Astro Motion Studio V1.6',
-          'star_style':self.star_style(),
+        return {'schema':6,'application':'AG Astro Motion Studio V1.7',
+          'star_style':self.star_style(),'enhanced_depth':{k:v.value()/100 for k,v in self.enhanced_controls.items()},
           'depth_refinement_preset':self.refinement_preset.currentText(),
           'export':{'orientation':self.orientation.currentText(),'quality':self.video_quality.value()},
           'cinematic':dataclasses.asdict(self.cinematic_settings()),'cinematic_preset':self.cine_preset.currentText(),
@@ -1236,6 +1322,7 @@ class Main(QMainWindow):
                 self.frame_workers.setValue(doc.get('frame_workers',0))
             finally:
                 for widget in controls:widget.blockSignals(False)
+            for key,control in self.enhanced_controls.items():control.setValue(round(100*doc.get('enhanced_depth',{}).get(key,control.value()/100)))
             style=doc.get('star_style',{})
             self.preserve_size.setChecked(style.get('preserve_size',True))
             for key,control in self.star_style_controls.items():
@@ -1279,6 +1366,7 @@ class Main(QMainWindow):
             self.cinematic_mode.setChecked(config.enabled)
             self.cine_preset.setCurrentText(preset)
             for key,slider in self.cine_sliders.items():slider.setValue(round(100*getattr(config,key)))
+            self.loop_preview.setChecked(config.loop!='Off')
             self.loop_mode.setCurrentText(config.loop);self.camera_path.setCurrentText(config.path)
             self.keep_centered.setChecked(config.centered);self.auto_drift.setChecked(config.drift)
             self.layer_split.setChecked(config.layer_split);self.advanced_settings.setChecked(False)

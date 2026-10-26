@@ -96,7 +96,7 @@ def _sample_map_points(image, xs, ys, interpolation=cv2.INTER_LINEAR, border_mod
 
 class Scene:
     def __init__(self, starless, stars, nebdepth, stardepth=None, out_w=1280, out_h=720,
-                 catalog=None, detection=None, protection=None, fast_preview=False, synthetic_density=0, cinematic=None, star_style=None):
+                 catalog=None, detection=None, protection=None, fast_preview=False, synthetic_density=0, cinematic=None, star_style=None, atlas_cache=None):
         from .engine import _fit_rgb
         from .star_catalog import detect_stars, normalized_rgb, with_synthetic_background
         from .protection import nebula_protection
@@ -110,7 +110,7 @@ class Scene:
         self.cinematic=cinematic or CinematicSettings()
         self.source_nd=nebdepth
         self.protection=protection if protection is not None else nebula_protection(starless)
-        self._atlas_cache={}
+        self._atlas_cache={} if atlas_cache is None else atlas_cache
         self.star_style=dict(star_style or {})
         self.neb = normalized_rgb(_fit_rgb(starless,self.w,self.h))
         self.nd = prepared_depth(_fit_rgb(nebdepth,self.w,self.h).astype(np.float32),self.cinematic)

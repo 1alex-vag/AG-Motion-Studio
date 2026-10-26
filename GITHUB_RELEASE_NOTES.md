@@ -1,28 +1,13 @@
-# AG Astro Motion Studio V1.6 — Windows performance & star fidelity
+# AG Astro Motion Studio V1.7 — Windows
 
-V1.6 builds on V1.5 with a reusable preview frame cache, stable timeline controls and more faithful scaling of observed stars.
+- Build Preview creates a reusable lossless temporary sequence for playback and immediate timeline dragging. Preview RAM remains bounded; disk previews have a 2 GB budget and are removed on reset/invalidation.
+- Dragging shows cached imagery; release requests the exact selected position. Latest-request guards remain in place.
+- Enhanced Depth adds Overall Depth, Fine Structure Depth, Dust Emphasis, Dust Depth Bias, Local Depth Contrast and edge-aware smoothing. Soft, Balanced, Dusty and Dramatic profiles are starting points. Apply Enhanced Depth processes the map asynchronously, preserving manual offsets.
+- Depth Editor selection brush/subtraction, connected similar-depth Magic Select, Select Similar Depth, diffuse-background selection, feathered selection operations and depth Undo/Redo.
+- Explicit minus/plus buttons replace spinbox arrows while retaining keyboard entry. Duration is 1–300 seconds.
+- Star atlases are reused independently of nebula changes. Original observed-star profiles, subpixel rendering and full-quality exports remain.
+- Hardware video encoders are probed once at startup; unavailable explicit choices are disabled. Rendering remains CPU/Numba; GPU encoding is not described as GPU rendering.
 
-- Reuse completed unchanged frames through a bounded 512 MB LRU cache (64–1024 MB configurable).
-- Debounce scrubbing by 125 ms, replace pending requests and reject obsolete results. Timeline movement keeps the sidebar enabled.
-- Play/Pause beside the timeline, independent preview FPS, frame skipping under load and optional Loop Preview.
-- Preserve Original Star Size enabled by default; advanced Size Scale, Bloom and Sharpness controls saved in projects.
-- Preserve observed RGB profiles, exact source/output scaling and compact subpixel points; faint stars receive no added halo.
-- Trim empty sprite support, cache nebula layer premultiplication and foreground-star weights, and avoid protection work outside the visible frame.
-- Keep full-quality final exports, automatic memory-aware frame workers, verified GPU encoder probing and CPU fallback. Render progress names the actual encoder.
+Windows only. No macOS build or GitHub release publication.
 
-Includes the standalone Windows executable, bundled runtime and FFmpeg, README, license notices, test report and V1.5 performance comparison. No manual Python installation required.
-
-This release is Windows-only. macOS V1.5 packages are unchanged. No GitHub release is published automatically.
-
-Limitations: RAM-only preview cache; cache misses still require rendering. Detection may merge touching stars or omit sub-threshold sources. Observed profiles undergo fractional resampling and H.264 color subsampling. GPU hardware is not available on the validation runner. Validation uses reproducible sparse/dense synthetic fields and short exports; the provided screenshots are visual references, not the original scientific source pair. Long 4K stress runs and a physical clean Windows machine are not claimed tested. See the enclosed reports for measured results and platform evidence.
-
-Preview-only playback FPS and Loop Preview are session controls. After reopening a project, check Loop Preview as needed; these choices are not stored in the project.
-
-## Windows validation
-
-68 source tests passed; the frozen Windows runtime self-test passed. Six dense-field Full HD/QHD/4K landscape/portrait clips passed encode/decode checks.
-
-- Sparse (247 stars): uncached preview 23.37 ms in V1.5, 22.98 ms in V1.6; cached lookup 0.00030 ms.
-- Dense (25,938 stars): uncached preview 83.97 ms in V1.5, 58.53 ms in V1.6; cached lookup 0.00030 ms.
-
-Cache lookup timings exclude Qt display conversion. Synthetic timings are specific to the Windows runner; see the complete raw comparison and limitations in the report.
+Known limits: temporary preview sequence decoding still uses CPU and disk; building a long preview can reach the 2 GB budget. Selection operations on very large maps and selection-brush overlays can be expensive. Magic Select uses connected depth similarity, not semantic object recognition. Background selection is heuristic and should be refined manually. Depth enhancement is artistic, not measured distance. Enhanced Depth is applied explicitly, rather than rebuilding continuously while sliders move. Preview-only FPS/loop choices are session controls. No physical clean-machine or user GPU validation is claimed.

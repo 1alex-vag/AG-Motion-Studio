@@ -8,6 +8,7 @@ from PyQt6.QtWidgets import (QDialog,QWidget,QVBoxLayout,QHBoxLayout,QFormLayout
     QComboBox,QSpinBox,QSlider,QPushButton,QCheckBox,QProgressBar,QDialogButtonBox)
 from .depth_edit import DepthPaint
 from .jobs import Work
+from .numeric import IntControl as QSpinBox, FloatControl as QDoubleSpinBox
 
 
 class DepthCanvas(QWidget):
@@ -17,6 +18,7 @@ class DepthCanvas(QWidget):
     def __init__(self,model,parent=None):
         super().__init__(parent);self.model=model
         self.tool='Raise';self.brush_size=100;self.strength=.3;self.softness=.7
+        self.selection=np.zeros_like(model.depth);self.feather=.3
         self.before=False;self.pointer=None;self.down=False
         self.setMinimumSize(500,330);self.setMouseTracking(True)
         self.setStyleSheet('background:#0c1016')
@@ -37,6 +39,9 @@ class DepthCanvas(QWidget):
         h,w=depth.shape;scale=min(1.,1200/max(h,w))
         display=cv2.resize(depth,(max(1,round(w*scale)),max(1,round(h*scale))),interpolation=cv2.INTER_AREA)
         rgb=cv2.applyColorMap(np.uint8(np.clip(display,0,1)*255),cv2.COLORMAP_TURBO)[...,::-1].copy()
+        if np.any(self.selection) and not self.before:
+            selection=cv2.resize(self.selection,(rgb.shape[1],rgb.shape[0]))[...,None]*.5
+            rgb=np.uint8(rgb*(1-selection)+np.array([40,255,180])*selection)
         self.image=QImage(rgb.data,rgb.shape[1],rgb.shape[0],rgb.strides[0],QImage.Format.Format_RGB888).copy()
         self.update()
 
@@ -55,7 +60,18 @@ class DepthCanvas(QWidget):
         self.down=True;self.model.begin();self.painting.emit(True);self._paint(point)
 
     def _paint(self,point):
-        self.model.stroke(*point,self.tool,self.brush_size,self.strength,self.softness)
+        if self.tool in ('Selection Brush','Subtract Selection'):
+            x,y=point;yy,xx=np.ogrid[:self.selection.shape[0],:self.selection.shape[1]]
+            distance=np.sqrt((xx-x)**2+(yy-y)**2)/max(1,self.brush_size/2)
+            weight=np.clip((1-distance)/max(.01,self.softness),0,1).astype(np.float32)
+            self.selection=np.clip(self.selection+weight*(1 if self.tool=='Selection Brush' else -1),0,1)
+        elif self.tool in ('Magic Select','Select Similar Depth'):
+            x,y=map(round,point);value=self.model.depth[max(0,y),max(0,x)]
+            similarity=np.abs(self.model.depth-value)<.08
+            if self.tool=='Magic Select':
+                _,labels=cv2.connectedComponents(similarity.astype(np.uint8));similarity=labels==labels[max(0,y),max(0,x)]
+            self.selection=similarity.astype(np.float32)
+        else:self.model.stroke(*point,self.tool,self.brush_size,self.strength,self.softness)
         self.refresh()
 
     def mouseMoveEvent(self,event):
@@ -75,13 +91,13 @@ class DepthCanvas(QWidget):
 
 class DepthEditor(QDialog):
     def __init__(self,versions,parent=None):
-        super().__init__(parent);self.setWindowTitle('AG Astro Motion Studio V1.5 — Depth Editor')
+        super().__init__(parent);self.setWindowTitle('AG Astro Motion Studio V1.7 — Depth Editor')
         self.resize(1000,750);self.model=DepthPaint(versions);self.worker=None
         layout=QVBoxLayout(self);toolbar=QHBoxLayout();layout.addLayout(toolbar)
-        self.tool=QComboBox();self.tool.addItems(['Raise','Lower','Smooth','Restore','Flatten'])
-        self.size=QSpinBox();self.size.setRange(10,1000);self.size.setValue(100);self.size.setSuffix(' px')
-        self.strength=QSpinBox();self.strength.setRange(1,100);self.strength.setValue(30);self.strength.setSuffix('%')
-        self.softness=QSpinBox();self.softness.setRange(0,100);self.softness.setValue(70);self.softness.setSuffix('%')
+        self.tool=QComboBox();self.tool.addItems(['Raise','Lower','Smooth','Restore','Flatten','Selection Brush','Subtract Selection','Magic Select','Select Similar Depth'])
+        self.size=QSpinBox();self.size.setRange(10,1000);self.size.setSingleStep(10);self.size.setValue(100);self.size.setSuffix(' px')
+        self.strength=QSpinBox();self.strength.setRange(1,100);self.strength.setSingleStep(5);self.strength.setValue(30);self.strength.setSuffix('%')
+        self.softness=QSpinBox();self.softness.setRange(0,100);self.softness.setSingleStep(5);self.softness.setValue(70);self.softness.setSuffix('%')
         for label,control in [('Tool',self.tool),('Brush Size',self.size),('Strength',self.strength),('Softness',self.softness)]:toolbar.addWidget(QLabel(label));toolbar.addWidget(control)
         self.canvas=DepthCanvas(self.model);layout.addWidget(self.canvas,1)
         self.tool.currentTextChanged.connect(lambda v:setattr(self.canvas,'tool',v))
@@ -89,6 +105,14 @@ class DepthEditor(QDialog):
         self.strength.valueChanged.connect(lambda v:setattr(self.canvas,'strength',v/100))
         self.softness.valueChanged.connect(lambda v:setattr(self.canvas,'softness',v/100))
         self.canvas.edited.connect(self.refresh);self.canvas.painting.connect(self.painting)
+        select=QHBoxLayout();layout.addLayout(select)
+        self.feather=QSpinBox();self.feather.setRange(0,100);self.feather.setValue(30);self.feather.setSuffix('%')
+        select.addWidget(QLabel('Selection Feather'));select.addWidget(self.feather)
+        for title,slot in [('Select Background',self.select_background),('Clear Selection',self.clear_selection)]:
+            button=QPushButton(title);button.clicked.connect(slot);select.addWidget(button)
+        operations=QHBoxLayout();layout.addLayout(operations)
+        for title,operation in [('Push Selected Back','Back'),('Bring Selected Forward','Forward'),('Smooth Selected','Smooth'),('Flatten Selected','Flatten'),('Restore Selected','Restore')]:
+            button=QPushButton(title);button.clicked.connect(lambda _,op=operation:self.apply_selection(op));operations.addWidget(button)
         actions=QHBoxLayout();layout.addLayout(actions)
         self.undo_button=QPushButton('Undo');self.redo_button=QPushButton('Redo')
         self.reset_button=QPushButton('Reset Depth Map');self.compare=QCheckBox('Before / After — show Generated Depth')
@@ -105,6 +129,18 @@ class DepthEditor(QDialog):
         self.buttons.button(QDialogButtonBox.StandardButton.Apply).clicked.connect(self.accept)
         self.buttons.rejected.connect(self.reject);layout.addWidget(self.buttons)
         self.refresh()
+
+    def select_background(self):
+        d=self.model.depth;detail=np.abs(d-cv2.GaussianBlur(d,(0,0),4))
+        self.canvas.selection=((d<=np.percentile(d,45))&(detail<=np.percentile(detail,65))).astype(np.float32);self.refresh()
+    def clear_selection(self):self.canvas.selection.fill(0);self.refresh()
+    def apply_selection(self,operation):
+        if self.worker is not None or self.canvas.down:return
+        mask=self.canvas.selection
+        if not np.any(mask):return
+        sigma=self.feather.value()/100*max(1,min(mask.shape)/60)
+        if sigma:mask=cv2.GaussianBlur(mask,(0,0),sigma)
+        self.model.selected(mask,operation,self.strength.value()/100);self.refresh()
 
     def painting(self,active):
         self.progress.setRange(0,0 if active else 100)
