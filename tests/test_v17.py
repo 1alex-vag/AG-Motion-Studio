@@ -46,7 +46,7 @@ def test_explicit_numeric_buttons_and_typed_value():
 def test_build_preview_playback_never_renders_again():
     win=Main();win.starless=np.zeros((48,80,3),np.float32);win.stars=np.zeros((48,80,3),np.uint8);win.stars[20:23,30:33]=200
     win.duration.setValue(1);win.make_depth();wait_idle(win);win.build_preview();wait_idle(win)
-    assert win.built_preview is not None and win.built_preview.count==16
+    assert win.built_preview is not None and win.built_preview.count==16 and win._preview_seconds==0
     with patch.object(Scene,'render',side_effect=AssertionError('render during built playback')):
         win.toggle_playback();APP.processEvents();win.pause_playback();wait_idle(win)
     win.reset_project();assert win.built_preview is None;win.close()

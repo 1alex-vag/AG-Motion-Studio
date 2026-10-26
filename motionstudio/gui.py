@@ -1002,7 +1002,7 @@ class Main(QMainWindow):
         snapshot=dict(self.preview_cache.frames)
         def done(result):
             if self.built_preview is not None:self.built_preview.close()
-            self.built_preview,scene=result;self.scene_cache=(key,scene);self._preview_state=state
+            self.built_preview,scene=result;self.scene_cache=(key,scene);self._preview_state=state;self._preview_seconds=0.
             self.status.setText('Preview built. Playback and dragging reuse the lossless temporary sequence.')
         self._start_work(task,done,'build-preview','Building preview…')
 

@@ -3,7 +3,7 @@ from pathlib import Path
 import os,sys
 from PyInstaller.utils.hooks import collect_all,collect_submodules
 ROOT=Path(SPECPATH).parent
-name='AG_Astro_Motion_Studio_v1.7'
+name='AG_Astro_Motion_Studio_v1.7' if sys.platform=='win32' else 'AG_Astro_Motion_Studio_v1.6'
 datas=[];binaries=[];hidden=[]
 for package in ('numba','llvmlite'):
     d,b,h=collect_all(package,filter_submodules=lambda module:'.tests' not in module and '.cuda' not in module)
@@ -23,5 +23,5 @@ exe=EXE(pyz,a.scripts,[],exclude_binaries=True,name=name,debug=False,
 coll=COLLECT(exe,a.binaries,a.datas,strip=False,upx=False,name=name)
 if sys.platform=='darwin':
     app=BUNDLE(coll,name='AG Astro Motion Studio.app',bundle_identifier='com.agastrophotography.astromotionstudio',
-        info_plist={'CFBundleShortVersionString':'1.7.0','CFBundleVersion':'1.7.0',
+        info_plist={'CFBundleShortVersionString':'1.6.0','CFBundleVersion':'1.6.0',
                     'NSHighResolutionCapable':True,'LSMinimumSystemVersion':'13.0'})
