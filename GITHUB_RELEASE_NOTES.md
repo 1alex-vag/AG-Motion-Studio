@@ -2,7 +2,7 @@
 
 - Build Preview creates a reusable lossless temporary sequence for playback and immediate timeline dragging. Preview RAM remains bounded; disk previews have a 2 GB budget and are removed on reset/invalidation.
 - Dragging shows cached imagery; release requests the exact selected position. Latest-request guards remain in place.
-- Enhanced Depth adds Overall Depth, Fine Structure Depth, Dust Emphasis, Dust Depth Bias, Local Depth Contrast and edge-aware smoothing. Soft, Balanced, Dusty and Dramatic profiles are starting points. Apply Enhanced Depth processes the map asynchronously, preserving manual offsets.
+- Enhanced Depth adds Overall Depth, Fine Structure Depth, Dust Emphasis, Dust Depth Bias, Local Depth Contrast and edge-aware smoothing. Soft, Balanced, Dusty and Dramatic profiles are starting points. Apply Enhanced Depth recomputes from Generated Depth asynchronously without cumulative reapplication, preserving manual offsets.
 - Depth Editor selection brush/subtraction, connected similar-depth Magic Select, Select Similar Depth, diffuse-background selection, feathered selection operations and depth Undo/Redo.
 - Explicit minus/plus buttons replace spinbox arrows while retaining keyboard entry. Duration is 1–300 seconds.
 - Star atlases are reused independently of nebula changes. Original observed-star profiles, subpixel rendering and full-quality exports remain.

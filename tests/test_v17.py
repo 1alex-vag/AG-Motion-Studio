@@ -50,3 +50,9 @@ def test_build_preview_playback_never_renders_again():
     with patch.object(Scene,'render',side_effect=AssertionError('render during built playback')):
         win.toggle_playback();APP.processEvents();win.pause_playback();wait_idle(win)
     win.reset_project();assert win.built_preview is None;win.close()
+
+
+def test_enhanced_depth_reapplication_is_idempotent():
+    win=Main();win.starless=np.full((48,80,3),.2,np.float32);win.starless[:,30:35]*=.1;win.stars=np.zeros((48,80,3),np.uint8)
+    win.make_depth();wait_idle(win);win.apply_depth_profile('Dusty');win.enhance_depth();wait_idle(win)
+    first=win.nd.copy();win.enhance_depth();wait_idle(win);np.testing.assert_array_equal(first,win.nd);win.close()

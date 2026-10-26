@@ -965,10 +965,11 @@ class Main(QMainWindow):
         if self.nd is None or self.worker is not None:return
         from .enhanced_depth import combine
         versions=self.depth_versions;image=self.starless
-        base=versions.refined if versions.refined is not None else versions.generated
+        base=versions.generated
+        manual_base=versions.refined if versions.refined is not None else versions.generated
         controls={k:v.value()/100 for k,v in self.enhanced_controls.items()}
         def done(result):
-            self.depth_versions=DepthVersions(versions.generated,result, None if versions.manual is None else np.clip(result+(versions.manual-base),0,1))
+            self.depth_versions=DepthVersions(versions.generated,result, None if versions.manual is None else np.clip(result+(versions.manual-manual_base),0,1))
             self.nd=self.depth_versions.current;self.scene_cache=None
             self.views['Nebula depth'].set_rgb(self._depth_display(self.nd));self._pending_preview=False
         self._start_work(lambda status,progress:combine(image,base,**controls)[0],done,'enhanced-depth','Applying multiscale depth…')
