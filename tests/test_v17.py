@@ -15,6 +15,8 @@ def test_multiscale_dust_controls_and_flat_input():
     y,x=np.mgrid[:80,:120];image=np.full((80,120,3),.4,np.float32);image[:,52:61]*=.15
     depth=(.5+.1*np.sin(x/30)).astype(np.float32)
     original=image.copy();a,base,fine=combine(image,depth)
+    emphasized=combine(image,depth,dust=1.8)[0]
+    assert np.max(np.abs(a-emphasized))>.01
     b,_,_=combine(image,depth,fine=1.8,dust=1.8,bias=.9)
     assert abs(a-b).max()>.03 and np.isfinite(b).all() and b.min()>=0 and b.max()<=1
     np.testing.assert_array_equal(image,original)
