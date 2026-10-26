@@ -23,9 +23,9 @@ def test_multiscale_dust_controls_and_flat_input():
 def test_selection_operations_are_non_destructive_and_undoable():
     generated=np.full((40,60),.5,np.float32);model=DepthPaint(DepthVersions(generated));mask=np.zeros_like(generated);mask[:,20:40]=1
     for operation in ('Back','Forward','Smooth','Flatten','Restore'):
-        before=model.depth.copy();model.selected(mask,operation)
+        before=model.depth.copy();history=len(model.undo_stack);model.selected(mask,operation)
         np.testing.assert_array_equal(model.depth[:,:20],before[:,:20])
-        if model.undo_stack:
+        if len(model.undo_stack)>history:
             after=model.depth.copy();model.undo();np.testing.assert_array_equal(model.depth,before);model.redo();np.testing.assert_array_equal(model.depth,after)
     np.testing.assert_array_equal(generated,.5)
 def test_editor_selection_only_changes_depth_on_apply():

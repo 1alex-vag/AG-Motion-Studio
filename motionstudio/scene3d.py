@@ -96,7 +96,7 @@ def _sample_map_points(image, xs, ys, interpolation=cv2.INTER_LINEAR, border_mod
 
 class Scene:
     def __init__(self, starless, stars, nebdepth, stardepth=None, out_w=1280, out_h=720,
-                 catalog=None, detection=None, protection=None, fast_preview=False, synthetic_density=0, cinematic=None, star_style=None, atlas_cache=None):
+                 catalog=None, detection=None, protection=None, fast_preview=False, synthetic_density=0, cinematic=None, star_style=None, atlas_cache=None, depth_cache=None):
         from .engine import _fit_rgb
         from .star_catalog import detect_stars, normalized_rgb, with_synthetic_background
         from .protection import nebula_protection
@@ -113,7 +113,9 @@ class Scene:
         self._atlas_cache={} if atlas_cache is None else atlas_cache
         self.star_style=dict(star_style or {})
         self.neb = normalized_rgb(_fit_rgb(starless,self.w,self.h))
-        self.nd = prepared_depth(_fit_rgb(nebdepth,self.w,self.h).astype(np.float32),self.cinematic)
+        from .depth_pyramid import level
+        working_depth=level(nebdepth,self.w,self.h,depth_cache) if fast_preview and depth_cache is not None else nebdepth
+        self.nd = prepared_depth(_fit_rgb(working_depth,self.w,self.h).astype(np.float32),self.cinematic)
         if self.cinematic.enabled and not (self.cinematic.layer_split or self.cinematic.volumetric):
             haze=(self.cinematic.atmosphere*self.cinematic.depth_haze*(1-self.nd))[...,None]
             soft=cv2.GaussianBlur(self.neb,(0,0),max(.1,self.w/900))

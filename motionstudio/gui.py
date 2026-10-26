@@ -131,6 +131,7 @@ class Main(QMainWindow):
         self._playback_request_time=-1.
         self.catalog = None
         self._star_atlases={}
+        self._depth_levels={}
         self.protection = None
         self.star_seed = 42
         self._last_duration = 8
@@ -953,7 +954,7 @@ class Main(QMainWindow):
         config=self.cinematic_settings();density=self.synthetic_density.value() if self.synthetic.isChecked() else 0
         key=(w,h,fast,density,id(self.nd),id(self.sd),id(self.starless),id(self.stars),id(self.catalog),id(self.protection),repr(config),repr(self.star_style()))
         args=dict(starless=self.starless,stars=self.stars,nebdepth=self.nd,stardepth=self.sd,out_w=w,out_h=h,
-                  catalog=self.catalog,protection=self.protection,fast_preview=fast,synthetic_density=density,cinematic=config,star_style=self.star_style(),atlas_cache=self._star_atlases[atlas_key] if not density else None)
+                  catalog=self.catalog,protection=self.protection,fast_preview=fast,synthetic_density=density,cinematic=config,star_style=self.star_style(),atlas_cache=self._star_atlases[atlas_key] if not density else None,depth_cache=self._depth_levels)
         return key,args
 
     def apply_depth_profile(self,name):
@@ -1056,6 +1057,8 @@ class Main(QMainWindow):
     def motion_preview(self,value=None,manual=False,debounce=False,seconds=None):
         if not hasattr(self,'nd') or self.nd is None:return
         self._preview_id+=1;request=self._preview_id
+        if isinstance(self.sender(),QSlider) and self.sender() is not self.timeline and not manual:
+            self._preview_latest=None;self.preview_debounce.start(125);return
         if self.worker is not None:
             self._pending_preview=manual;return
         try:settings=self._settings()

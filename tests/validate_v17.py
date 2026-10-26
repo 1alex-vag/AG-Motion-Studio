@@ -83,11 +83,42 @@ def main():
             reader=imageio.get_reader(path);frame=reader.get_data(0);meta=reader.get_meta_data();reader.close()
             assert frame.shape==(h,w,3) and round(meta['fps'])==30
             result['exports'].append({'width':w,'height':h,'seconds':time.perf_counter()-a,'stars':len(catalog),**info})
+        # Measure the actual GUI Build Preview path with the same dense catalog.
+        from PyQt6.QtWidgets import QApplication
+        from motionstudio.gui import Main
+        from motionstudio.depth_edit import DepthVersions
+        from motionstudio.star_catalog import depth_map
+        from unittest.mock import patch
+        app=QApplication.instance() or QApplication([]);window=Main()
+        window.starless=n;window.stars=s;window.nd=d;window.sd=depth_map(catalog);window.catalog=catalog;window.depth_versions=DepthVersions(d)
+        window.duration.setValue(1)
+        def idle():
+            deadline=time.monotonic()+120
+            while (window.worker is not None or window._preview_worker is not None or window.preview_debounce.isActive() or window._preview_latest is not None) and time.monotonic()<deadline:app.processEvents();time.sleep(.002)
+            assert window.worker is None and window._preview_worker is None
+        idle();a=time.perf_counter();window.build_preview();idle();built=time.perf_counter()-a
+        assert window.built_preview is not None
+        reads=[]
+        with patch.object(Scene,'render',side_effect=AssertionError('Unexpected render in built playback')):
+            window.toggle_playback()
+            for i in range(20):
+                a=time.perf_counter();window.built_preview.get(i/20);reads.append(time.perf_counter()-a)
+                app.processEvents()
+            window.pause_playback()
+        result['built_preview']={'build_seconds':built,'frames':window.built_preview.count,'bytes':window.built_preview.bytes,'decode_median_seconds':statistics.median(reads),'render_calls_during_cached_playback':0}
+        window.reset_project();window.close()
+        from motionstudio.enhanced_depth import combine
+        for kind in ('emission','dust'):
+            image=n.copy()
+            if kind=='dust':image[:,500:540]*=.1
+            enhanced,base_depth,detail=combine(image,d,fine=1.5,dust=1.5,bias=.75)
+            assert np.isfinite(enhanced).all()
+            cv2.imwrite(str(out/(kind+'_enhanced_depth.png')),np.uint8(enhanced*255))
         (out/'performance_v17.json').write_text(json.dumps(result,indent=2))
         report=['# V1.7 Windows validation results','',f"Baseline: {result['baseline_commit']}. All timings measured on this Windows hosted runner. Short synthetic clips; no pristine physical end-user machine or long-duration 4K stress test.",'','## Performance','']
         for kind,value in result['fields'].items():
             report.append(f"- {kind}: {value['v17']['stars']:,} stars; V1.6 preview {value['v16']['preview_median_seconds']*1000:.2f} ms, V1.7 {value['v17']['preview_median_seconds']*1000:.2f} ms ({value['renderer_speedup']:.2f}×); cached lookup {value['cache']['retrieval_median_seconds']*1000:.5f} ms. Video speedup {value['video_speedup']:.2f}×.")
-        report+=['','## Output checks','','Six dense-field CPU H.264 exports passed decode/dimension/FPS checks: Full HD, QHD (2K), 4K, each landscape and portrait. Each clip has three frames. Sparse/dense source-derived profile comparisons and repeat-render determinism passed. GUI cache, rapid scrubbing, latest-request, playback, pause, reset and unchanged enabled-state checks run in pytest.','', 'The full pytest result and frozen runtime smoke result are separate build evidence. Side-by-side PNGs support visual review; screenshots are references, not the original scientific image pair. Hardware encoders require user hardware and are not claimed validated here.']
+        report+=['','## Built preview','',json.dumps(result['built_preview']), '', '## Output checks','','Six dense-field CPU H.264 exports passed decode/dimension/FPS checks: Full HD, QHD (2K), 4K, each landscape and portrait. Each clip has three frames. Sparse/dense source-derived profile comparisons and repeat-render determinism passed. GUI cache, rapid scrubbing, latest-request, playback, pause, reset and unchanged enabled-state checks run in pytest.','', 'The full pytest result and frozen runtime smoke result are separate build evidence. Side-by-side PNGs support visual review; screenshots are references, not the original scientific image pair. Hardware encoders require user hardware and are not claimed validated here.']
         (out/'TEST_REPORT.md').write_text('\n'.join(report))
         (ROOT/'VALIDATION.md').write_text('\n'.join(report))
 

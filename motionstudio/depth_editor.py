@@ -66,7 +66,7 @@ class DepthCanvas(QWidget):
             weight=np.clip((1-distance)/max(.01,self.softness),0,1).astype(np.float32)
             self.selection=np.clip(self.selection+weight*(1 if self.tool=='Selection Brush' else -1),0,1)
         elif self.tool in ('Magic Select','Select Similar Depth'):
-            x,y=map(round,point);value=self.model.depth[max(0,y),max(0,x)]
+            x,y=map(round,point);x=min(self.selection.shape[1]-1,max(0,x));y=min(self.selection.shape[0]-1,max(0,y));value=self.model.depth[max(0,y),max(0,x)]
             similarity=np.abs(self.model.depth-value)<.08
             if self.tool=='Magic Select':
                 _,labels=cv2.connectedComponents(similarity.astype(np.uint8));similarity=labels==labels[max(0,y),max(0,x)]
