@@ -127,3 +127,9 @@ def test_memory_budget_and_video_cpu(tmp_path):
     path=tmp_path/'cloud.mp4';info=render_video_scene(scene,default_keyframes(duration=.1),path,.1,30,encoder='cpu',workers=1)
     import imageio.v2 as imageio
     reader=imageio.get_reader(path);assert reader.get_data(0).shape==(96,144,3);reader.close();assert info['frames']==3
+
+
+def test_centered_flythrough_keeps_forward_heading():
+    scene,_=cloud();scene.cinematic=CinematicSettings(enabled=True,centered=True)
+    for z in (0,2.5,3.,3.5,4.):
+        pose=scene.center_pose(Pose(z=z));assert abs(pose.yaw)<45 and abs(pose.pitch)<45

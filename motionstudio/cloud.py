@@ -96,9 +96,10 @@ def build_cloud(image,depth,settings=None,quality='Fast',status=lambda _:None,pr
         indices=rng.choice(gw*gh,count,p=probability,replace=True)
         iy,ix=indices//gw,indices%gw
         u=(ix+rng.random(count))/gw;v=(iy+rng.random(count))/gh
+        noise_rng=np.random.default_rng(1902)
         coherent=np.zeros((gh,gw),np.float32)
         for resolution,weight in ((7,.6),(19,.28),(47,.12)):
-            coherent+=cv2.resize(rng.uniform(-1,1,(resolution,resolution)).astype(np.float32),(gw,gh),interpolation=cv2.INTER_CUBIC)*weight
+            coherent+=cv2.resize(noise_rng.uniform(-1,1,(resolution,resolution)).astype(np.float32),(gw,gh),interpolation=cv2.INTER_CUBIC)*weight
         # Multiple correlated strata, never independent white Z noise.
         layer=(np.arange(count)%5-2)/2
         z=3.-(d[iy,ix]-.5)*2.4+settings.thickness*(layer*.38+coherent[iy,ix]*.45)
@@ -189,7 +190,7 @@ class CloudScene:
         from .cinematic import center_camera
         if self.cinematic.enabled and self.cinematic.centered:
             x=(self.cinematic.anchor_x-.5)*self.anchor_z/self.fref;y=(self.cinematic.anchor_y-.5)*self.aspect*self.anchor_z/self.fref
-            return center_camera(pose,self.anchor_z,x,y)
+            return center_camera(pose,max(self.anchor_z,pose.z+.8),x,y)
         return pose
     def pose_at(self,frames,seconds,duration):
         from .cinematic import evaluate_camera
@@ -211,7 +212,7 @@ class CloudScene:
             radius=np.clip(self.cloud_sizes*focal/np.maximum(z,.12)*(1+.6*s.softness),.55,5. if self.fast_preview else 8.)
             visible=(z>.12)&(xy[:,0]>-16)&(xy[:,0]<self.w+16)&(xy[:,1]>-16)&(xy[:,1]<self.h+16)
             indices=np.flatnonzero(visible);order=indices[np.argsort(z[indices])[::-1]]
-            image=raster_cloud(xy,radius,g.rgb,g.opacity,order,self.w,self.h,s.softness,s.opacity)
+            image=raster_cloud(xy,radius,g.rgb,g.opacity*np.clip((z-.12)/.18,0,1),order,self.w,self.h,s.softness,s.opacity)
         if s.content!='Nebula Only' and star_intensity>0 and len(self.catalog):
             if self.original is not None:
                 overlay=self.original.render(pose,star_parallax,depth_spread,movement,brightness_boost,bloom,motion_over_nebula,star_intensity,previous_pose).astype(np.float32)/255

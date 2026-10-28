@@ -533,7 +533,10 @@ class Main(QMainWindow):
         thickness,density={'Subtle':(30,70),'Cinematic':(70,100),'Deep Cloud':(130,150),'Nebula Fly-through':(100,100)}[name]
         self.cloud_values['thickness'].setValue(thickness);self.cloud_values['density'].setValue(density)
         if name=='Nebula Fly-through':
-            self.scene_content.setCurrentText('Nebula Only');self.mode.setCurrentText('Fly-through')
+            self.scene_content.setCurrentText('Nebula Only')
+            self.mode.blockSignals(True);self.mode.setCurrentText('Manual');self.mode.blockSignals(False)
+            self.keyframes=[s3.Pose(),s3.Pose(time=self.duration.value(),x=.04,y=.02,z=3.1)]
+            self._refresh_keyframes()
         self.cloud_changed()
     def reset_cloud_camera(self):
         self._set_camera(s3.Pose());self.motion_preview(manual=True)
