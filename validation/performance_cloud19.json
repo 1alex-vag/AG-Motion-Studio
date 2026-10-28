@@ -1,0 +1,94 @@
+{
+  "backend": "CPU/Numba",
+  "gpu_rendering_tested": false,
+  "fields": {
+    "emission": {
+      "build_seconds": 0.04010259999995469,
+      "particles": 37500,
+      "array_bytes": 1500000,
+      "median_frame_seconds": 0.1716310000000476,
+      "preview_fps": 5.8264532631035335,
+      "z_range": [
+        2.097292423248291,
+        3.8061532974243164
+      ]
+    },
+    "dust": {
+      "build_seconds": 0.030437000000006265,
+      "particles": 37500,
+      "array_bytes": 1500000,
+      "median_frame_seconds": 0.17271900000002915,
+      "preview_fps": 5.789750982809252,
+      "z_range": [
+        2.095158338546753,
+        3.8072919845581055
+      ]
+    },
+    "mixed": {
+      "build_seconds": 0.03230510000003051,
+      "particles": 37500,
+      "array_bytes": 1500000,
+      "median_frame_seconds": 0.17148610000003828,
+      "preview_fps": 5.831376420594887,
+      "z_range": [
+        2.0952250957489014,
+        3.8061532974243164
+      ]
+    },
+    "widefield": {
+      "build_seconds": 0.028927500000008877,
+      "particles": 37500,
+      "array_bytes": 1500000,
+      "median_frame_seconds": 0.17305020000003424,
+      "preview_fps": 5.778670004425318,
+      "z_range": [
+        2.0957462787628174,
+        3.807223320007324
+      ]
+    }
+  },
+  "density": [
+    {
+      "density": 0.25,
+      "particles": 18750,
+      "array_bytes": 750000,
+      "build_seconds": 0.025462400000037633,
+      "first_frame_seconds": 0.11718959999996059
+    },
+    {
+      "density": 1.0,
+      "particles": 75000,
+      "array_bytes": 3000000,
+      "build_seconds": 0.04379489999996622,
+      "first_frame_seconds": 0.22436330000005
+    },
+    {
+      "density": 2.0,
+      "particles": 150000,
+      "array_bytes": 6000000,
+      "build_seconds": 0.06835269999999127,
+      "first_frame_seconds": 0.2663679999999431
+    }
+  ],
+  "exports": [
+    {
+      "fps": 24,
+      "seconds": 9.3128410999999,
+      "particles": 112500,
+      "quality": 18,
+      "encoder": "libx264",
+      "workers": 1,
+      "frames": 6
+    },
+    {
+      "fps": 30,
+      "seconds": 12.327168799999981,
+      "particles": 112500,
+      "quality": 18,
+      "encoder": "libx264",
+      "workers": 1,
+      "frames": 8
+    }
+  ],
+  "classic_renderer_sha256": "bf962ed39fe110344c16b452f829158ce5169b0cf4e3ca790b81b32ac7d8f6a8"
+}

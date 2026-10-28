@@ -30,3 +30,7 @@ See `VALIDATION.md` and the included measurements for actual results and limits.
 ## Recommended for V2.0
 
 Verified optional GPU splatting and screen-space LOD; improved sampling/antialiasing and image fidelity metrics; volumetric star extinction and dust absorption; cancellable generation; conservative framing/coverage tools; tests against real astrophotography pairs; independent geometry/style caches and a broader hardware matrix.
+
+## Verified preview release
+
+91 tests passed. The Windows frozen-runtime smoke test passed for Classic and Experimental Cloud. Four synthetic field types, three cloud densities, and short 1080p H.264 exports at 24/30 FPS were checked. See the validation report for timings and known limitations.
