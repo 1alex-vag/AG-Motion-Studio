@@ -237,9 +237,9 @@ def test_no_misleading_model_wording_in_ui_and_version_about():
     for widget in win.findChildren(QLabel)+win.findChildren(QAbstractButton):texts.append(widget.text())
     joined=' '.join(texts).lower()
     assert 'ai not installed' not in joined and 'with ai' not in joined and 'model download' not in joined
-    assert win.btn_refine.text()=='Refine Nebula Depth' and 'V1.7' in win.windowTitle()
+    assert win.btn_refine.text()=='Refine Nebula Depth' and 'V1.9' in win.windowTitle()
     with patch('motionstudio.gui.QMessageBox.about') as about:
-        win.about_dialog();assert '1.7.0' in about.call_args.args[2]
+        win.about_dialog();assert '1.9.0' in about.call_args.args[2]
     win.close()
 
 

@@ -26,6 +26,7 @@ from .depth_editor import DepthEditor
 from .projects import portable_reference, resolve_reference
 from .export_settings import RESOLUTIONS, validate_resolution
 from . import __version__
+from .cloud import CloudSettings,CloudScene,build_cloud,empty_catalog
 
 STYLE = '''
 QWidget { background:#141820; color:#eaf0f8; font-family:Segoe UI,Arial; font-size:13px; }
@@ -109,13 +110,14 @@ class ImagePreview(QLabel):
 class Main(QMainWindow):
     def __init__(self):
         super().__init__()
-        self.setWindowTitle('AG Astro Motion Studio V1.7  •  ag_astrophotography')
+        self.setWindowTitle('AG Astro Motion Studio V1.9  •  ag_astrophotography')
         self.resize(1190, 790)
         self.setStyleSheet(STYLE)
         self.starless_path = self.star_path = None
         self.starless = self.stars = self.nd = self.sd = None
         self.depth_versions = None
         self.worker = None
+        self.cloud_cache=None
         self.scene_cache = None
         self.preview_cache=PreviewCache()
         self.built_preview=None
@@ -195,6 +197,30 @@ class Main(QMainWindow):
         reset_row=QHBoxLayout();reset_row.addStretch();reset_row.addWidget(self.btn_reset)
         l.addLayout(reset_row)
         left_col.addWidget(box1)
+
+        cloud_box=QGroupBox('3D CLOUD');cloud_form=QFormLayout(cloud_box)
+        self.render_engine=QComboBox();self.render_engine.addItems(['Classic 2.5D','Experimental 3D Cloud']);cloud_form.addRow('Render Engine',self.render_engine)
+        self.cloud_panel=QWidget();cloud_controls=QFormLayout(self.cloud_panel)
+        self.scene_content=QComboBox();self.scene_content.addItems(['Full Scene','Nebula Only','Stars Only']);cloud_controls.addRow('Scene Content',self.scene_content)
+        self.cloud_depth_source=QComboBox();self.cloud_depth_source.addItems(['Hybrid','Luminance','Current Depth Map']);cloud_controls.addRow('Depth Source',self.cloud_depth_source)
+        self.cloud_values={}
+        for key,title,lo,hi,default in [('density','Cloud Density',10,200,100),('thickness','Nebula Thickness',0,200,60),('softness','Cloud Softness',0,100,40),('opacity','Cloud Opacity',0,200,100),('dust_bias','Dust Depth Bias',0,100,50),('star_size','Star Size',50,150,100),('glow','Star Glow',0,100,15)]:
+            control=QSpinBox();control.setRange(lo,hi);control.setValue(default);control.setSuffix('%');control.setSingleStep(5)
+            self.cloud_values[key]=control;cloud_controls.addRow(title,control);control.valueChanged.connect(self.cloud_changed)
+        self.cloud_star_style=QComboBox();self.cloud_star_style.addItems(['Sphere','Sphere + Glow','Sphere + Spikes','Original Sprite']);cloud_controls.addRow('Star Style',self.cloud_star_style)
+        self.cloud_spikes=QComboBox();self.cloud_spikes.addItems(['Off','4','6','8']);cloud_controls.addRow('Diffraction Spikes',self.cloud_spikes)
+        advanced=QWidget();af=QFormLayout(advanced)
+        self.cloud_spike_values={}
+        for key,title,lo,hi,value in [('spike_length','Spike Length',.1,3,1),('spike_width','Spike Width',.2,3,1),('spike_intensity','Spike Intensity',0,2,.3),('spike_rotation','Spike Rotation',0,360,0)]:
+            control=QDoubleSpinBox();control.setRange(lo,hi);control.setValue(value);control.setSingleStep(1 if key=='spike_rotation' else .1)
+            self.cloud_spike_values[key]=control;af.addRow(title,control);control.valueChanged.connect(self.cloud_changed)
+        toggle=QPushButton('Advanced Spikes ▾');toggle.setCheckable(True);toggle.toggled.connect(advanced.setVisible);advanced.hide();cloud_controls.addRow(toggle);cloud_controls.addRow(advanced)
+        presets=QComboBox();presets.addItems(['Custom','Subtle','Cinematic','Deep Cloud','Nebula Fly-through']);presets.currentTextChanged.connect(self.cloud_preset);cloud_controls.addRow('Cloud Preset',presets)
+        self.btn_cloud=QPushButton('Build 3D Cloud');self.btn_cloud.clicked.connect(self.build_3d_cloud);cloud_controls.addRow(self.btn_cloud)
+        reset_camera=QPushButton('Reset Camera');reset_camera.clicked.connect(self.reset_cloud_camera);cloud_controls.addRow(reset_camera)
+        self.cloud_status=QLabel('Artistic 3D interpretation. Rendering: CPU/Numba; video encoder is separate.');self.cloud_status.setWordWrap(True);cloud_controls.addRow(self.cloud_status)
+        cloud_form.addRow(self.cloud_panel);self.cloud_panel.hide();left_col.addWidget(cloud_box)
+        for combo in (self.render_engine,self.scene_content,self.cloud_depth_source,self.cloud_star_style,self.cloud_spikes):combo.currentTextChanged.connect(self.cloud_changed)
 
         box2 = QGroupBox('2  DEPTH MAPS')
         l = QVBoxLayout(box2)
@@ -487,6 +513,66 @@ class Main(QMainWindow):
         for index,name in enumerate(('nvenc','qsv','amf'),2):self.encoder.model().item(index).setEnabled(name in available)
         self.encoder.setToolTip('Rendering: CPU / Numba. Working hardware video encoders: '+(', '.join(available) or 'none; CPU libx264 fallback'))
 
+    def _cloud_active(self):return hasattr(self,'render_engine') and self.render_engine.currentText()=='Experimental 3D Cloud'
+    def _nebula_only(self):return self._cloud_active() and self.scene_content.currentText()=='Nebula Only'
+    def cloud_settings(self):
+        return CloudSettings(content=self.scene_content.currentText(),depth_source=self.cloud_depth_source.currentText(),star_style=self.cloud_star_style.currentText(),spikes=0 if self.cloud_spikes.currentText()=='Off' else int(self.cloud_spikes.currentText()),**{k:v.value()/100 for k,v in self.cloud_values.items()},**{k:v.value() for k,v in self.cloud_spike_values.items()})
+    def cloud_signature(self):return (id(self.starless),id(self.stars),id(self.nd),id(self.catalog),repr(self.cloud_settings()),self.preview_quality.currentIndex())
+    def cloud_changed(self,*_):
+        if not hasattr(self,'preview_status'):return
+        self.pause_playback();self._preview_id+=1;self._preview_latest=None;self.preview_debounce.stop()
+        self.scene_cache=None;self._preview_state=None;self.preview_cache.clear()
+        if self.built_preview is not None:self.built_preview.close();self.built_preview=None
+        self.cloud_panel.setVisible(self._cloud_active())
+        self.cam['z'].setRange(-1.5,6. if self._cloud_active() else 2.)
+        self.cloud_status.setText('3D Cloud needs rebuild. Rendering: CPU/Numba; GPU video encoding is separate.')
+        self._update_buttons()
+    def cloud_preset(self,name):
+        if name=='Custom':return
+        self.render_engine.setCurrentText('Experimental 3D Cloud')
+        thickness,density={'Subtle':(30,70),'Cinematic':(70,100),'Deep Cloud':(130,150),'Nebula Fly-through':(100,100)}[name]
+        self.cloud_values['thickness'].setValue(thickness);self.cloud_values['density'].setValue(density)
+        if name=='Nebula Fly-through':
+            self.scene_content.setCurrentText('Nebula Only');self.mode.setCurrentText('Fly-through')
+        self.cloud_changed()
+    def reset_cloud_camera(self):
+        self._set_camera(s3.Pose());self.motion_preview(manual=True)
+    @staticmethod
+    def _create_scene(**args):
+        return CloudScene(**args) if 'cloud_settings' in args else s3.Scene(**args)
+    def make_nebula_depth(self):
+        n=self.starless
+        def task(status,progress):
+            status('Generating nebula-only depth…');progress(10)
+            nd=e.nebula_depth(n);progress(60);protection=nebula_protection(n)
+            catalog=empty_catalog(n.shape[:2]);return DepthVersions(nd),catalog,depth_map(catalog),protection
+        def done(result):
+            self.depth_versions,self.catalog,self.sd,self.protection=result;self.nd=self.depth_versions.current;self.cloud_cache=None;self.scene_cache=None
+            self.views['Nebula depth'].set_rgb(self._depth_display(self.nd));self.views['Star depth'].set_rgb(self._depth_display(self.sd))
+            self.status.setText('Nebula depth ready — click Build 3D Cloud.');self.star_count.setText('Stars: disabled — Nebula Only')
+        self._start_work(task,done,'depth','Generating nebula-only depth…')
+    def build_3d_cloud(self):
+        if self.worker is not None:return
+        if self.starless is None:self.status.setText('Load a Starless image first.');return
+        options=self.cloud_settings()
+        if options.content!='Nebula Only' and self.stars is None:self.status.setText('Load a Star Mask for Full Scene / Stars Only.');return
+        n,st,nd=self.starless,self.stars,self.nd;catalog=self.catalog;detection=self.detection_settings()
+        signature=self.cloud_signature();quality='Fast' if self.preview_quality.currentIndex()==0 else 'High'
+        def task(status,progress):
+            current=e.nebula_depth(n) if nd is None else checked_depth(nd,n.shape[:2])
+            if st is not None:e.validate_pair(n,st)
+            detected=(catalog if catalog is not None and len(catalog)>0 else detect_stars(st,detection)) if options.content!='Nebula Only' else empty_catalog(n.shape[:2])
+            geometry=build_cloud(n,current,options,quality,status,progress)
+            return current,detected,geometry
+        def done(result):
+            current,detected,geometry=result
+            if self.nd is None:self.depth_versions=DepthVersions(current);self.nd=self.depth_versions.current
+            self.catalog=detected;self.sd=depth_map(detected)
+            self.cloud_cache=(self.cloud_signature(),geometry);self.scene_cache=None
+            self.cloud_status.setText(f'Nebula particles: {len(geometry):,} · Stars: {len(detected):,} · CPU/Numba · Cloud arrays: {geometry.memory_bytes/1024**2:.1f} MB'+(' · Preview density reduced.' if len(geometry)<geometry.requested else ''))
+            self.views['Nebula depth'].set_rgb(self._depth_display(self.nd));self._pending_preview=False
+        self._start_work(task,done,'cloud','Building 3D Cloud…')
+
     def _sync_timeline(self,*_):
         ratio=self.timeline.value()/max(1,self.timeline.maximum())
         self.timeline.blockSignals(True)
@@ -497,6 +583,7 @@ class Main(QMainWindow):
     def _update_buttons(self):
         ready = (self.starless is not None and self.stars is not None
                  and self.starless.shape == self.stars.shape)
+        if self._nebula_only():ready=self.starless is not None
         maps = ready and self.nd is not None and self.sd is not None
         busy = self.worker is not None
         for group in self.edit_groups:group.setEnabled(not busy)
@@ -504,6 +591,7 @@ class Main(QMainWindow):
         self.btn_play.setEnabled(maps and not busy)
         self.btn_build.setEnabled(maps and not busy)
         self.btn_depth.setEnabled(ready and not busy)
+        self.btn_cloud.setEnabled(self._cloud_active() and ready and not busy)
         self.btn_refine.setEnabled(maps and not busy)
         self.btn_edit_depth.setEnabled(maps and not busy)
         self.btn_maps.setEnabled(maps and not busy)
@@ -602,7 +690,7 @@ class Main(QMainWindow):
         kwargs=self._render_arguments()
         def task(status,progress):
             status('Building loop preview scene…');progress(-1)
-            scene=cached[1] if cached is not None and cached[0]==key else s3.Scene(**args)
+            scene=cached[1] if cached is not None and cached[0]==key else self._create_scene(**args)
             status('Rendering low-resolution loop preview…')
             result=[]
             for i in range(count):
@@ -625,6 +713,7 @@ class Main(QMainWindow):
             motion_over_nebula=self.nebula_motion.value()/100,star_intensity=self.star_intensity.value()/100)
 
     def _clear_generated(self):
+        self.cloud_cache=None
         if self.built_preview is not None:self.built_preview.close();self.built_preview=None
         self.pause_playback();self._preview_id+=1;self._preview_latest=None
         self.preview_cache.clear();self._preview_state=None;self._star_atlases.clear()
@@ -685,7 +774,7 @@ class Main(QMainWindow):
             elif self.starless is not None and self.stars is not None:
                 e.validate_pair(self.starless,self.stars)
                 self.status.setText('Both images loaded and dimensions match. Generate Depth Maps.')
-            else:self.status.setText('Loaded. Import the matching second image.')
+            else:self.status.setText('Loaded. Nebula Only can build without a Star Mask.' if self._nebula_only() else 'Loaded. Import the matching second image.')
             self.tabs.setCurrentWidget(self.views['Starless' if neb else 'Star mask'])
             self._update_buttons()
         except Exception as exc:
@@ -701,6 +790,8 @@ class Main(QMainWindow):
 
     def make_depth(self):
         if self.worker is not None:return
+        if self._nebula_only() and self.starless is not None:
+            self.make_nebula_depth();return
         if self.starless is None or self.stars is None:return
         n,st=self.starless,self.stars;detection=self.detection_settings()
         try:settings=self._settings()
@@ -723,7 +814,7 @@ class Main(QMainWindow):
         def done(result):
             versions,self.catalog,self.sd,self.protection,displays,scene=result
             self.depth_versions=versions;self.nd=versions.current
-            key,_=self._scene_snapshot(w,h,True);self.scene_cache=(key,scene)
+            key,_=self._scene_snapshot(w,h,True);self.scene_cache=None if self._cloud_active() else (key,scene)
             self.star_count.setText(f'Stars: {len(self.catalog):,}')
             for name,image in zip(('Nebula depth','Star depth','Nebula protection'),displays):self.views[name].set_rgb(image)
             self.tabs.setCurrentWidget(self.views['Nebula depth'])
@@ -835,7 +926,7 @@ class Main(QMainWindow):
 
     def about_dialog(self):
         QMessageBox.about(self,'About AG Astro Motion Studio',
-            f'AG Astro Motion Studio V1.7 ({__version__})\nDeveloped by ag_astrophotography\n\n'
+            f'AG Astro Motion Studio V1.9 ({__version__})\nDeveloped by ag_astrophotography\n\n'
             'Artistic 2.5D animation from original starless and star-mask images.\nDepth Refinement runs locally and works offline.')
 
     def _mode_changed(self, mode):
@@ -943,7 +1034,7 @@ class Main(QMainWindow):
         key,args=self._scene_snapshot(900,520,False);pose=self._current_pose();spread=self.depth_spread.value()/100
         def task(status,progress):
             status('Building top view…');progress(-1)
-            return s3.Scene(**args).top_view(pose,depth_spread=spread)
+            return self._create_scene(**args).top_view(pose,depth_spread=spread)
         self._start_work(task,lambda image:self._display_view('3D Preview',image,'Top view ready — 100%.'),'preview','Preparing top view…')
 
     def _scene_snapshot(self,w,h,fast):
@@ -955,6 +1046,11 @@ class Main(QMainWindow):
         key=(w,h,fast,density,id(self.nd),id(self.sd),id(self.starless),id(self.stars),id(self.catalog),id(self.protection),repr(config),repr(self.star_style()))
         args=dict(starless=self.starless,stars=self.stars,nebdepth=self.nd,stardepth=self.sd,out_w=w,out_h=h,
                   catalog=self.catalog,protection=self.protection,fast_preview=fast,synthetic_density=density,cinematic=config,star_style=self.star_style(),atlas_cache=self._star_atlases[atlas_key] if not density else None,depth_cache=self._depth_levels)
+        if self._cloud_active():
+            options=self.cloud_settings();signature=self.cloud_signature()
+            geometry=self.cloud_cache[1] if self.cloud_cache is not None and self.cloud_cache[0]==signature else None
+            args.update(cloud_settings=options,cloud_geometry=geometry)
+            key=(*key,'Experimental 3D Cloud',signature)
         return key,args
 
     def apply_depth_profile(self,name):
@@ -987,7 +1083,7 @@ class Main(QMainWindow):
         if self.built_preview is not None and self.built_preview.state==state and self.built_preview.count==count:
             self.status.setText('Preview already built — cached sequence reused.');return
         def task(status,progress):
-            scene=cached[1] if cached is not None and cached[0]==key else s3.Scene(**args)
+            scene=cached[1] if cached is not None and cached[0]==key else self._create_scene(**args)
             sequence=PreviewSequence(state,settings.duration,count)
             try:
                 for i in range(count):
@@ -1057,6 +1153,7 @@ class Main(QMainWindow):
 
     def motion_preview(self,value=None,manual=False,debounce=False,seconds=None):
         if not hasattr(self,'nd') or self.nd is None:return
+        if self.stars is None and not self._nebula_only():return
         self._preview_id+=1;request=self._preview_id
         if isinstance(self.sender(),QSlider) and self.sender() is not self.timeline and not manual:
             self._preview_latest=None;self.preview_debounce.start(125);return
@@ -1068,6 +1165,8 @@ class Main(QMainWindow):
         scale=min(1.,limit/max(settings.width,settings.height))
         w=max(2,int(settings.width*scale)//2*2);h=max(2,int(settings.height*scale)//2*2)
         key,args=self._scene_snapshot(w,h,fast)
+        if self._cloud_active() and args.get('cloud_geometry') is None:
+            self.cloud_status.setText('3D Cloud needs rebuild — click Build 3D Cloud.');return
         frames=self.render_keyframes();duration=settings.duration
         t=duration*self.timeline.value()/max(1,self.timeline.maximum()) if seconds is None else seconds
         pose=self._current_pose() if manual else None
@@ -1105,6 +1204,7 @@ class Main(QMainWindow):
         # Camera widgets remain untouched during timeline playback and scrubbing.
         if manual:self._set_camera(current)
         self.views['3D Preview'].set_rgb(image);self.tabs.setCurrentWidget(self.views['3D Preview'])
+        if self._cloud_active() and CloudScene.outside_safe_range(current):label+=' · Outside recommended 3D viewing range'
         fps=int(self.fps.currentText());count=max(1,round(duration*fps))
         self.preview_status.setText(f'Frame {min(count,round(t/duration*self.timeline.maximum())+1)} / {count} · {label}')
 
@@ -1118,7 +1218,7 @@ class Main(QMainWindow):
             return
         cached=self.scene_cache
         def task(status,progress):
-            scene=cached[1] if cached is not None and cached[0]==key else s3.Scene(**args)
+            scene=cached[1] if cached is not None and cached[0]==key else self._create_scene(**args)
             current=scene.center_pose(pose) if manual else scene.pose_at(frames,t,duration)
             previous=None if manual else scene.pose_at(frames,t-.5/fps if scene.cinematic.loop!='Off' else max(0,t-.5/fps),duration)
             return scene,current,scene.render(current,previous_pose=previous,**render_args)
@@ -1146,7 +1246,9 @@ class Main(QMainWindow):
         scale=min(1.,900/max(settings.width,settings.height))
         key,args=self._scene_snapshot(max(2,int(settings.width*scale)//2*2),max(2,int(settings.height*scale)//2*2),False)
         def task(status,progress):
-            scene=s3.Scene(**args)
+            classic_args={k:v for k,v in args.items() if k not in ('cloud_settings','cloud_geometry')}
+            if classic_args['stars'] is None:raise ValueError('Load a Star Mask to compare stars')
+            scene=s3.Scene(**classic_args)
             from .engine import _fit_rgb
             original=np.uint8(normalized_rgb(_fit_rgb(args['stars'],scene.w,scene.h))*255+.5)
             # Black nebula isolates only the observed stars under a neutral camera.
@@ -1207,7 +1309,7 @@ class Main(QMainWindow):
         scale=min(1.,900/max(settings.width,settings.height))
         key,args=self._scene_snapshot(max(2,int(settings.width*scale)//2*2),max(2,int(settings.height*scale)//2*2),False)
         spread=self.depth_spread.value()/100
-        self._start_work(lambda status,progress:s3.Scene(**args).debug_view(depth,spread),
+        self._start_work(lambda status,progress:self._create_scene(**args).debug_view(depth,spread),
             lambda image:self._display_view('Star Detection',image,'Star detection view ready — 100%.'),'preview','Preparing star detection view…')
 
     def render_keyframes(self):
@@ -1222,7 +1324,8 @@ class Main(QMainWindow):
         return frames
 
     def project_document(self):
-        return {'schema':6,'application':'AG Astro Motion Studio V1.7',
+        return {'schema':6,'application':'AG Astro Motion Studio V1.9',
+          'render_engine':self.render_engine.currentText(),'cloud':dataclasses.asdict(self.cloud_settings()),
           'star_style':self.star_style(),'enhanced_depth':{k:v.value()/100 for k,v in self.enhanced_controls.items()},
           'depth_refinement_preset':self.refinement_preset.currentText(),
           'export':{'orientation':self.orientation.currentText(),'quality':self.video_quality.value()},
@@ -1266,9 +1369,13 @@ class Main(QMainWindow):
         if not path:return
         try:
             doc=json.loads(Path(path).read_text(encoding='utf-8'));base=Path(path).parent
-            nebpath=resolve_reference(doc['starless'],base);starpath=resolve_reference(doc['star_mask'],base)
+            nebpath=resolve_reference(doc['starless'],base)
+            cloud_options=CloudSettings(**doc.get('cloud',{}))
+            optional_stars=doc.get('render_engine')=='Experimental 3D Cloud' and cloud_options.content=='Nebula Only'
+            starpath=resolve_reference(doc['star_mask'],base) if doc.get('star_mask') else None
+            if starpath is None and not optional_stars:raise ValueError('This project requires a Star Mask')
             for title,value,key in [('Starless Image',nebpath,'starless'),('Star Mask',starpath,'star_mask')]:
-                if not value.exists():
+                if value is not None and not value.exists():
                     replacement,_=QFileDialog.getOpenFileName(self,'Locate '+title,'','Images (*.fits *.fit *.fts *.tif *.tiff *.png *.jpg *.jpeg)')
                     if not replacement:return
                     if key=='starless':nebpath=Path(replacement)
@@ -1279,7 +1386,9 @@ class Main(QMainWindow):
         except Exception as exc:QMessageBox.critical(self,'Open failed',str(exc));return
         def task(status,progress):
             status('Loading project images…');progress(-1)
-            neb=e.load_image(nebpath);stars=e.load_image(starpath);e.validate_pair(neb,stars);progress(20)
+            neb=e.load_image(nebpath);stars=e.load_image(starpath) if starpath is not None else None
+            if stars is not None:e.validate_pair(neb,stars)
+            progress(20)
             status('Restoring project depth…');progress(-1)
             protection=None
             if doc.get('nebula_depth_file'):
@@ -1289,7 +1398,7 @@ class Main(QMainWindow):
                     if 'protection' in saved:protection=checked_depth(saved['protection'],neb.shape[:2])
             else:versions=DepthVersions(e.nebula_depth(neb))
             progress(50);status('Detecting project stars…');progress(-1)
-            catalog=detect_stars(stars,detection);sd=depth_map(catalog);progress(80)
+            catalog=detect_stars(stars,detection) if stars is not None else empty_catalog(neb.shape[:2]);sd=depth_map(catalog);progress(80)
             if protection is None:
                 status('Generating nebula protection…');progress(-1);protection=nebula_protection(neb)
             displays=[self._depth_display(v) for v in (versions.current,sd,protection)]
@@ -1297,7 +1406,7 @@ class Main(QMainWindow):
         def done(result):
             neb,stars,versions,catalog,sd,protection,displays=result
             self.depth_versions=versions;nd=versions.current
-            self.starless_path=str(nebpath);self.star_path=str(starpath)
+            self.starless_path=str(nebpath);self.star_path=str(starpath) if starpath is not None else None
             self.starless=neb;self.stars=stars;self.nd=nd;self.catalog=catalog;self.sd=sd
             self.protection=protection;self.scene_cache=None
             anim=doc.get('animation',{})
@@ -1341,11 +1450,22 @@ class Main(QMainWindow):
             self.parallax_label.setText(f'{self.parallax.value()}%');self.depth_spread_label.setText(f'{self.depth_spread.value()}%')
             self.nebula_motion_label.setText(f'{self.nebula_motion.value()}%');self.star_intensity_label.setText(f'{self.star_intensity.value()}%')
             self.views['Nebula protection'].set_rgb(displays[2])
-            self.lbl_neb.setText(nebpath.name);self.lbl_star.setText(starpath.name)
+            self.lbl_neb.setText(nebpath.name);self.lbl_star.setText(starpath.name if starpath is not None else 'No star mask — Nebula Only')
             self.star_count.setText(f'Stars: {len(catalog):,}')
             for name,image in [('Starless',neb),('Star mask',stars),('Nebula depth',displays[0]),('Star depth',displays[1])]:
-                self.views[name].set_rgb(image)
-            self._pending_preview=False;self.status.setText('Project restored — 100%.')
+                if image is not None:self.views[name].set_rgb(image)
+                else:self.views[name].rgb=None;self.views[name].clear();self.views[name].setText('No star mask — Nebula Only')
+            self.cloud_cache=None
+            controls=(self.render_engine,self.scene_content,self.cloud_depth_source,self.cloud_star_style,self.cloud_spikes,*self.cloud_values.values(),*self.cloud_spike_values.values())
+            for control in controls:control.blockSignals(True)
+            self.render_engine.setCurrentText(doc.get('render_engine','Classic 2.5D'))
+            self.scene_content.setCurrentText(cloud_options.content);self.cloud_depth_source.setCurrentText(cloud_options.depth_source)
+            self.cloud_star_style.setCurrentText(cloud_options.star_style);self.cloud_spikes.setCurrentText(str(cloud_options.spikes) if cloud_options.spikes else 'Off')
+            for key,control in self.cloud_values.items():control.setValue(round(getattr(cloud_options,key)*100))
+            for key,control in self.cloud_spike_values.items():control.setValue(getattr(cloud_options,key))
+            for control in controls:control.blockSignals(False)
+            self.cloud_changed();self._pending_preview=None
+            self.status.setText('Project restored — Build 3D Cloud to regenerate geometry.' if self._cloud_active() else 'Project restored — 100%.')
         self._start_work(task,done,'project','Opening project…')
 
 
@@ -1425,13 +1545,17 @@ class Main(QMainWindow):
         doc=self.project_document()
         cine=self.cinematic_settings()
         star_style=self.star_style()
+        cloud_options=self.cloud_settings() if self._cloud_active() else None
         quality=self.video_quality.value();versions=self.depth_versions or DepthVersions(nd)
         par=self.parallax.value()/100
         spread=self.depth_spread.value()/100
         duration=settings.duration;fps=settings.fps
         def task(status,progress):
             status('Building final 3D scene…');progress(-1)
-            scene=s3.Scene(n,st,nd,sd,settings.width,settings.height,catalog=catalog,protection=protection,synthetic_density=density,cinematic=cine,star_style=star_style)
+            if cloud_options is not None:
+                geometry=build_cloud(n,nd,cloud_options,'Final',status,progress)
+                scene=CloudScene(n,st,nd,sd,settings.width,settings.height,catalog=catalog,cinematic=cine,cloud_geometry=geometry,cloud_settings=cloud_options)
+            else:scene=s3.Scene(n,st,nd,sd,settings.width,settings.height,catalog=catalog,protection=protection,synthetic_density=density,cinematic=cine,star_style=star_style)
             encoding=s3.render_video_scene(scene,frames,path,duration,fps,par,spread,
                  progress=lambda done,total:progress(int(100*done/total)),
                  movement=movement,brightness_boost=boost,bloom=bloom,motion_over_nebula=over_nebula,

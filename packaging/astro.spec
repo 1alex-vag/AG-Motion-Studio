@@ -3,7 +3,7 @@ from pathlib import Path
 import os,sys
 from PyInstaller.utils.hooks import collect_all,collect_submodules
 ROOT=Path(SPECPATH).parent
-name='AG_Astro_Motion_Studio_v1.7' if sys.platform=='win32' else 'AG_Astro_Motion_Studio_v1.6'
+name='AG_Astro_Motion_Studio_v1.9_Experimental' if sys.platform=='win32' else 'AG_Astro_Motion_Studio_v1.6'
 datas=[];binaries=[];hidden=[]
 for package in ('numba','llvmlite'):
     d,b,h=collect_all(package,filter_submodules=lambda module:'.tests' not in module and '.cuda' not in module)

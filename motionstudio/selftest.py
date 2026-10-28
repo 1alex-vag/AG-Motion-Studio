@@ -45,6 +45,18 @@ def main():
             assert engine.load_image(root/'sample.fits').shape==(12,20,3)
             tifffile.imwrite(root/'sample.tif',np.ones((12,20,3),np.uint16)*1000)
             assert engine.load_image(root/'sample.tif').dtype==np.float32
+        from .cloud import CloudSettings,CloudScene,build_cloud,raster_cloud,raster_stars
+        options=CloudSettings(density=.1,star_style='Sphere + Spikes',spikes=4)
+        geometry=build_cloud(neb,window.nd,options)
+        cloud=CloudScene(neb,stars,window.nd,out_w=80,out_h=48,cloud_geometry=geometry,cloud_settings=options,catalog=window.catalog)
+        assert cloud.render(default_keyframes()[0]).max()>0
+        assert len(raster_cloud.signatures)>0 and len(raster_stars.signatures)>0
+        with tempfile.TemporaryDirectory() as tmp:
+            cloud_video=render_video_scene(cloud,frames,Path(tmp)/'cloud.mp4',.1,30,workers=1,encoder='cpu')
+        only=CloudSettings(content='Nebula Only',density=.1)
+        nebula=CloudScene(neb,None,window.nd,out_w=80,out_h=48,cloud_geometry=geometry,cloud_settings=only)
+        assert nebula.render(default_keyframes()[0]).max()>0 and len(nebula.catalog)==0
+        report.update(experimental_cloud=True,cloud_particles=len(geometry),cloud_video=cloud_video,nebula_only_without_mask=True)
         executable=Path(imageio_ffmpeg.get_ffmpeg_exe()).resolve()
         if report['frozen']:
             executable.relative_to(Path(sys._MEIPASS).resolve())

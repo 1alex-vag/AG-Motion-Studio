@@ -1,7 +1,7 @@
-name: Validate and package V1.7 Windows
+name: Validate and package V1.9 Windows
 on:
   push:
-    branches: [codex/ag-motion-studio-v1.7]
+    branches: [codex/ag-motion-studio-v1.9]
   workflow_dispatch:
 permissions:
   contents: read
@@ -26,9 +26,10 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: AG-Astro-Motion-Studio-V1.7-Windows-x64
+          name: AG-Astro-Motion-Studio-V1.9-Windows-x64
           path: |
             release/*.zip
+            release/ARCHIVE_SHA256.txt
             release/validation/**
             release/*/PACKAGED_SELF_TEST.json
             release/*/BUILD_INFO.json

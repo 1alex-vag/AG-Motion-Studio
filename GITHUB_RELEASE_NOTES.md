@@ -1,22 +1,32 @@
-# AG Astro Motion Studio V1.7 — Windows
+# AG Astro Motion Studio V1.9 — Experimental 3D Cloud preview (Windows)
 
-- Build Preview creates a reusable lossless temporary sequence for playback and immediate timeline dragging. Preview RAM remains bounded; disk previews have a 2 GB budget and are removed on reset/invalidation.
-- Dragging shows cached imagery; release requests the exact selected position. Latest-request guards remain in place.
-- Enhanced Depth adds Overall Depth, Fine Structure Depth, Dust Emphasis, Dust Depth Bias, Local Depth Contrast and edge-aware smoothing. Soft, Balanced, Dusty and Dramatic profiles are starting points. Apply Enhanced Depth recomputes from Generated Depth asynchronously without cumulative reapplication, preserving manual offsets.
-- Depth Editor selection brush/subtraction, connected similar-depth Magic Select, Select Similar Depth, diffuse-background selection, feathered selection operations and depth Undo/Redo.
-- Explicit minus/plus buttons replace spinbox arrows while retaining keyboard entry. Duration is 1–300 seconds.
-- Star atlases are reused independently of nebula changes. Original observed-star profiles, subpixel rendering and full-quality exports remain.
-- Hardware video encoders are probed once at startup; unavailable explicit choices are disabled. Rendering remains CPU/Numba; GPU encoding is not described as GPU rendering.
+V1.9 adds an isolated particle-cloud engine alongside the unchanged **Classic 2.5D** renderer. Classic remains the default, including for older projects.
 
-Windows only. No macOS build or GitHub release publication.
+- Build a deterministic XYZ nebula cloud from Starless RGB, current/generated/refined/manual depth, structure-aware density and correlated Z thickness.
+- Adaptive sampling suppresses empty background and retains dark dust structures through density and alpha opacity. Cloud Density, Thickness, Softness, Opacity and Dust Bias remain high-level controls.
+- Full Scene, Nebula Only and Stars Only. **Nebula Only works without a Star Mask.**
+- Independent stable 3D star objects, projected sphere cores, optional restrained glow, 4/6/8 screen-space diffraction spikes and Original Sprite compatibility mode.
+- Existing X/Y/Z, yaw/pitch/roll/FOV, camera keyframes, Cinematic paths, timeline scrubbing, Play/Pause, Build Preview and video encoder/export workflow.
+- Cloud geometry is built once and cached. Camera motion never rebuilds it. Relevant changes show “3D Cloud needs rebuild”. Separate preview/final particle budgets and memory limits prevent unbounded allocations.
+- Near clipping and screen-radius caps prevent giant particles at the camera. A non-blocking viewing-range warning allows advanced camera positions.
+- Project files store renderer/content/cloud/star/spike settings, not huge point-cloud data. Cloud geometry is rebuilt after reopening.
 
-Known limits: temporary preview sequence decoding still uses CPU and disk; building a long preview can reach the 2 GB budget. Selection operations on very large maps and selection-brush overlays can be expensive. Magic Select uses connected depth similarity, not semantic object recognition. Background selection is heuristic and should be refined manually. Depth enhancement is artistic, not measured distance. Enhanced Depth is applied explicitly, rather than rebuilding continuously while sliders move. Preview-only FPS/loop choices are session controls. No physical clean-machine or user GPU validation is claimed.
+## Rendering and encoding
 
-## Windows validation
+3D rendering uses **CPU/Numba**. A GPU rendering backend is not included in this preview: packaging stability and CPU fallback take priority over adding an unvalidated OpenGL/CUDA driver dependency. Existing NVENC, Quick Sync and AMF probes select only working **video encoders**; GPU encoding is not GPU cloud rendering.
 
-74 source tests passed; the frozen Windows runtime self-test passed. Six dense-field Full HD/QHD/4K landscape/portrait clips passed encode/decode checks.
+## Installation
 
-- Sparse (247 stars): uncached preview 22.91 ms in V1.6, 22.93 ms in V1.7; cached lookup 0.00030 ms.
-- Dense (25,938 stars): uncached preview 61.05 ms in V1.6, 60.64 ms in V1.7; cached lookup 0.00030 ms.
+Extract the complete `AG_Astro_Motion_Studio_v1.9_Experimental_Windows.zip`. Start `AG_Astro_Motion_Studio_v1.9_Experimental/AG_Astro_Motion_Studio_v1.9_Experimental.exe`, or run `INSTALL_WINDOWS.bat`. Keep the EXE and `_internal` folder together. Python and FFmpeg are bundled.
 
-Cache lookup timings exclude Qt display conversion. Synthetic timings are specific to the Windows runner; see the complete raw comparison and limitations in the report.
+## Experimental limitations
+
+Experimental 3D Cloud creates an artistic and structurally plausible 3D interpretation of the supplied image and depth information. It is not a scientific reconstruction of the true nebula geometry. A single 2D image cannot uniquely determine hidden geometry.
+
+Sparse regions, alpha-splat grain, stratification and disocclusion holes can appear, particularly at large offsets or rear/side views. Source color is preserved per particle; overall brightness/contrast depends on particle coverage and opacity. Dust uses simplified alpha absorption; stars are composited over the cloud without full per-star volumetric extinction. The prototype has no physically based scattering, 3D gas dynamics, GPU rasterization or guaranteed interactive FPS at high density. Source preparation is capped at 1200 pixels on the long edge; final rasterization keeps full selected output resolution and uses a larger geometry budget. Dense input stars retain the existing detection limits. Cloud generation and final export are exclusive background operations; mid-build cancellation is deferred.
+
+See `VALIDATION.md` and the included measurements for actual results and limits. No physical clean-machine, user GPU, long 4K stress run or real user image pair is claimed validated. No macOS package is built. No GitHub release is published automatically.
+
+## Recommended for V2.0
+
+Verified optional GPU splatting and screen-space LOD; improved sampling/antialiasing and image fidelity metrics; volumetric star extinction and dust absorption; cancellable generation; conservative framing/coverage tools; tests against real astrophotography pairs; independent geometry/style caches and a broader hardware matrix.
