@@ -111,7 +111,9 @@ def test_project_roundtrip_optional_mask_and_old_defaults(tmp_path):
     import tifffile
     n,st,d=fixture();path=tmp_path/'neb.tif';tifffile.imwrite(path,n)
     win=Main();win.starless=n;win.starless_path=str(path);win.render_engine.setCurrentText('Experimental 3D Cloud');win.scene_content.setCurrentText('Nebula Only')
-    win.make_depth();wait_idle(win);win.cloud_values['thickness'].setValue(130);win.write_project(tmp_path/'project.json')
+    win.cloud_values['density'].setValue(10);win.build_3d_cloud();wait_idle(win)
+    assert win.protection is None
+    win.cloud_values['thickness'].setValue(130);win.write_project(tmp_path/'project.json')
     other=Main()
     with patch.object(QFileDialog,'getOpenFileName',return_value=(str(tmp_path/'project.json'),'JSON')),patch('motionstudio.gui.QMessageBox.critical') as errors:
         other.load_scene_project();wait_idle(other);errors.assert_not_called()

@@ -1351,7 +1351,9 @@ class Main(QMainWindow):
         for key in ('starless','star_mask'):doc[key]=portable_reference(doc.get(key),path.parent)
         if versions is not None:
             depth_path=path.with_suffix('.depth.npz')
-            np.savez_compressed(depth_path,nebula=versions.current,protection=protection,**versions.arrays())
+            arrays=dict(nebula=versions.current,**versions.arrays())
+            if protection is not None:arrays['protection']=protection
+            np.savez_compressed(depth_path,**arrays)
             doc['nebula_depth_file']=depth_path.name
         path.write_text(json.dumps(doc,indent=2),encoding='utf-8')
 
